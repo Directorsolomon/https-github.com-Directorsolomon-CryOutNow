@@ -13,21 +13,12 @@ import {
   FormLabel,
   FormMessage,
 } from "./ui/form";
-import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
+import { ImageIcon } from "lucide-react";
 import { Switch } from "./ui/switch";
 
 const formSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string().min(1, "Description is required"),
-  category: z.string().min(1, "Category is required"),
+  description: z.string().min(1, "Prayer request cannot be empty"),
   isPublic: z.boolean().default(true),
 });
 
@@ -35,23 +26,13 @@ type PrayerRequestFormProps = {
   onSubmit?: (data: z.infer<typeof formSchema>) => void;
 };
 
-const categories = [
-  { value: "health", label: "Health" },
-  { value: "family", label: "Family" },
-  { value: "work", label: "Work" },
-  { value: "spiritual", label: "Spiritual" },
-  { value: "other", label: "Other" },
-];
-
 const PrayerRequestForm = ({
   onSubmit = (data) => console.log("Form submitted:", data),
 }: PrayerRequestFormProps) => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      title: "",
       description: "",
-      category: "health",
       isPublic: true,
     },
   });
@@ -64,9 +45,7 @@ const PrayerRequestForm = ({
         throw new Error("Must be logged in to submit a prayer request");
 
       const { error } = await supabase.from("prayer_requests").insert({
-        title: data.title,
-        description: data.description,
-        category: data.category,
+        content: data.description,
         is_public: data.isPublic,
         user_id: user.id,
       });
@@ -80,65 +59,21 @@ const PrayerRequestForm = ({
   };
 
   return (
-    <div className="w-full max-w-[600px] bg-background p-6">
-      <h2 className="text-2xl font-semibold mb-6">Submit Prayer Request</h2>
+    <div className="w-full bg-background p-4">
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-          <FormField
-            control={form.control}
-            name="title"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Title</FormLabel>
-                <FormControl>
-                  <Input placeholder="Enter prayer request title" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           <FormField
             control={form.control}
             name="description"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Description</FormLabel>
                 <FormControl>
                   <Textarea
-                    placeholder="Describe your prayer request"
-                    className="min-h-[100px]"
+                    placeholder="Share your prayer request..."
+                    className="min-h-[100px] border-none focus-visible:ring-0 px-0 text-lg resize-none"
                     {...field}
                   />
                 </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="category"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Category</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category.value} value={category.value}>
-                        {category.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -165,9 +100,25 @@ const PrayerRequestForm = ({
             )}
           />
 
-          <Button type="submit" className="w-full">
-            Submit Prayer Request
-          </Button>
+          <div className="flex justify-between items-center pt-4 border-t">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="text-primary hover:text-primary/90"
+                onClick={() => {
+                  // TODO: Implement image upload
+                  console.log("Image upload clicked");
+                }}
+              >
+                <ImageIcon className="h-5 w-5" />
+              </Button>
+            </div>
+            <Button type="submit" className="rounded-full px-6">
+              Post
+            </Button>
+          </div>
         </form>
       </Form>
     </div>
