@@ -18,7 +18,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 
 interface HomeProps {
-  userName?: string;
+  // userName?: string;
   showNewRequestDialog?: boolean;
 }
 
@@ -38,13 +38,35 @@ const SidebarLink = ({
 );
 
 const Home = ({
-  userName = "John Doe",
   showNewRequestDialog = false,
-}: HomeProps) => {
+}: Omit<HomeProps, "userName">) => {
   const [isDialogOpen, setIsDialogOpen] = React.useState(showNewRequestDialog);
   const { user } = useAuth();
-
+  const [username, setUsername] = React.useState<string>("");
   const [prayerRequests, setPrayerRequests] = React.useState([]);
+
+  React.useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", user.id)
+        .single();
+
+      if (error) {
+        console.error("Error fetching user profile:", error);
+        return;
+      }
+
+      if (data) {
+        setUsername(data.username);
+      }
+    };
+
+    fetchUserProfile();
+  }, [user]);
 
   React.useEffect(() => {
     const fetchPrayerRequests = async () => {
@@ -85,7 +107,7 @@ const Home = ({
 
   return (
     <div className="min-h-screen bg-background">
-      <Header userName={userName} />
+      <Header userName={username || "Guest"} />
 
       {/* Main Content */}
       <main className="pt-[72px] grid grid-cols-1 md:grid-cols-[auto,1fr,auto] max-w-7xl mx-auto gap-4">

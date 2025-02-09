@@ -6,7 +6,7 @@ type AuthContextType = {
   session: Session | null;
   user: User | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw new Error(getErrorMessage(error));
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, fullName: string) => {
     // First check if user exists
     const { data: existingUser } = await supabase
       .from("profiles")
@@ -73,15 +73,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
     }
 
-    const { error } = await supabase.auth.signUp({
+    // Sign up the user
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth`,
+        data: {
+          full_name: fullName,
+        },
       },
     });
 
     if (error) throw new Error(getErrorMessage(error));
+    if (!data.user) throw new Error("No user created");
+
+    // Create the profile using the newly created user data
+    const { error: profileError } = await supabase.from("profiles").insert([
+      {
+        id: data.user.id,
+        full_name: fullName,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        username: email.split("@")[0], // Default username from email
+        avatar_url: null,
+      },
+    ]);
+
+    if (profileError) {
+      console.error("Profile creation error:", profileError);
+      throw new Error("Failed to create user profile");
+    }
   };
 
   const signOut = async () => {

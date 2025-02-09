@@ -19,7 +19,7 @@ interface HeaderProps {
 const Header = ({
   onMenuClick = () => {},
   onSearchChange = () => {},
-  userName = "John Doe",
+  userName = { userName },
 }: HeaderProps) => {
   const { signOut } = useAuth();
 

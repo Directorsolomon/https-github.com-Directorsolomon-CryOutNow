@@ -44,6 +44,21 @@ const PrayerRequestForm = ({
       if (!user)
         throw new Error("Must be logged in to submit a prayer request");
 
+      // First ensure profile exists
+      const { error: profileError } = await supabase.from("profiles").upsert({
+        id: user.id,
+        full_name: user.user_metadata.full_name || "Anonymous",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        username: user.email?.split("@")[0] || "user",
+        avatar_url: null,
+      });
+
+      if (profileError) {
+        console.error("Profile error:", profileError);
+        throw new Error("Failed to verify user profile");
+      }
+
       const { error } = await supabase.from("prayer_requests").insert({
         content: data.description,
         is_public: data.isPublic,
