@@ -1,5 +1,5 @@
 import React from "react";
-import { useAuth } from "@/lib/auth";
+import { useAuth, AuthProvider } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,7 +26,7 @@ type PrayerRequestFormProps = {
   onSubmit?: (data: z.infer<typeof formSchema>) => void;
 };
 
-const PrayerRequestForm = ({
+const PrayerRequestFormInner = ({
   onSubmit = (data) => console.log("Form submitted:", data),
 }: PrayerRequestFormProps = {}) => {
   const form = useForm<z.infer<typeof formSchema>>({
@@ -142,4 +142,4 @@ const PrayerRequestForm = ({
   );
 };
 
-export default PrayerRequestForm;
+export default PrayerRequestFormInner;

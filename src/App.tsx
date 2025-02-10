@@ -9,11 +9,16 @@ import { Toaster } from "./components/ui/toaster";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
+  // Redirect to home if authenticated and trying to access auth page
+  if (session && window.location.pathname === "/auth") {
+    return <Navigate to="/home" replace />;
+  }
   if (!session) return <Navigate to="/auth" replace />;
   return <>{children}</>;
 }
 
 function AppRoutes() {
+  const { session } = useAuth();
   const tempoRoutes =
     import.meta.env.VITE_TEMPO === "true" ? useRoutes(routes) : null;
 
@@ -21,8 +26,14 @@ function AppRoutes() {
     <Suspense fallback={<p>Loading...</p>}>
       {tempoRoutes}
       <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/auth" element={<AuthForm />} />
+        <Route
+          path="/"
+          element={session ? <Navigate to="/home" replace /> : <LandingPage />}
+        />
+        <Route
+          path="/auth"
+          element={session ? <Navigate to="/home" replace /> : <AuthForm />}
+        />
         <Route
           path="/home"
           element={

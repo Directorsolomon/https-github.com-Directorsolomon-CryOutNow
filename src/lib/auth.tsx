@@ -13,7 +13,7 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function getErrorMessage(error: AuthError): string {
+const getErrorMessage = (error: AuthError): string => {
   switch (error.message) {
     case "User already registered":
       return "This email is already registered. Please sign in instead.";
@@ -28,9 +28,13 @@ function getErrorMessage(error: AuthError): string {
     default:
       return error.message;
   }
-}
+};
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+type AuthProviderProps = {
+  children: React.ReactNode;
+};
+
+const AuthProvider = ({ children }: AuthProviderProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
 
@@ -86,6 +90,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      // Redirect to home if authenticated
+      if (session?.user && window.location.pathname === "/auth") {
+        window.location.href = "/";
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -104,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth`,
+          redirectTo: `${window.location.origin}/`,
           scopes: "email profile",
           queryParams: {
             access_type: "offline",
@@ -184,12 +192,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
+};
 
-export function useAuth() {
+const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
-}
+};
+
+export { AuthProvider, useAuth };
