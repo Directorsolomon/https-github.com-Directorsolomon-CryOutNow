@@ -22,7 +22,7 @@ const HeaderInner = ({
   onSearchChange = () => {},
   userName = "Guest",
 }: HeaderProps = {}) => {
-  const { signOut = () => {} } = useAuth() || {};
+  const { signOut = () => {}, user } = useAuth() || {};
 
   return (
     <header className="w-full h-[72px] px-4 bg-background border-b flex items-center justify-between fixed top-0 left-0 z-50">
@@ -67,7 +67,12 @@ const HeaderInner = ({
           <DropdownMenuContent align="end">
             <DropdownMenuItem>Profile</DropdownMenuItem>
             <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => signOut()}>
+            <DropdownMenuItem
+              onSelect={async () => {
+                await signOut();
+                window.location.href = "/";
+              }}
+            >
               Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>

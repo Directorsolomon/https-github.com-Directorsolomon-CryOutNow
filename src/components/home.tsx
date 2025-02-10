@@ -22,6 +22,7 @@ interface PrayerRequest {
   profiles: {
     username: string;
   };
+  prayer_count?: number;
 }
 
 const SidebarLink = ({
@@ -40,6 +41,8 @@ const SidebarLink = ({
 );
 
 const HomeInner = ({ showNewRequestDialog = false }: HomeProps) => {
+  const [selectedRequest, setSelectedRequest] = useState<PrayerRequest | null>(null);
+  const [prayedRequests, setPrayedRequests] = useState<Set<string>>(new Set());
   const [isDialogOpen, setIsDialogOpen] = React.useState(showNewRequestDialog);
   const { user } = useAuth();
   const [username, setUsername] = React.useState<string>("");
@@ -71,16 +74,33 @@ const HomeInner = ({ showNewRequestDialog = false }: HomeProps) => {
   }, [user]);
 
   React.useEffect(() => {
+    const fetchPrayedRequests = async () => {
+      if (!user) return;
+      
+      const { data } = await supabase
+        .from('prayer_interactions')
+        .select('prayer_request_id')
+        .eq('user_id', user.id);
+
+      if (data) {
+        setPrayedRequests(new Set(data.map(item => item.prayer_request_id)));
+      }
+    };
+
+    fetchPrayedRequests();
+  }, [user]);
+
+  React.useEffect(() => {
     const fetchPrayerRequests = async () => {
       const { data, error } = await supabase
         .from("prayer_requests")
         .select(
           `
           *,
-          profiles (
-            username
-          )
+          profiles (username),
+          prayer_interactions (count)
         `,
+        .eq('is_public', true)
         )
         .order("created_at", { ascending: false });
 
@@ -90,7 +110,10 @@ const HomeInner = ({ showNewRequestDialog = false }: HomeProps) => {
       }
 
       if (data) {
-        setPrayerRequests(data);
+        setPrayerRequests(data.map(request => ({
+          ...request,
+          prayer_count: request.prayer_interactions?.[0]?.count || 0
+        })));
       }
     };
 
@@ -157,29 +180,146 @@ const HomeInner = ({ showNewRequestDialog = false }: HomeProps) => {
             <h2 className="text-xl font-semibold">Home</h2>
           </div>
           <div className="max-w-2xl mx-auto space-y-4 p-4">
+            {selectedRequest ? (
+              <PrayerRequestDetail
+                requestId={selectedRequest.id}
+                content={selectedRequest.content}
+                username={selectedRequest.profiles?.username || "Anonymous"}
+                timestamp={selectedRequest.created_at}
+                prayerCount={selectedRequest.prayer_count || 0}
+                isPrivate={!selectedRequest.is_public}
+                onBack={() => setSelectedRequest(null)}
+                onPrayClick={async () => {
+                  if (!user) return;
+                  const hasPrayed = prayedRequests.has(selectedRequest.id);
+                  
+                  if (hasPrayed) {
+                    await supabase
+                      .from('prayer_interactions')
+                      .delete()
+                      .eq('user_id', user.id)
+                      .eq('prayer_request_id', selectedRequest.id);
+                    setPrayedRequests(prev => {
+                      const next = new Set(prev);
+                      next.delete(selectedRequest.id);
+                      return next;
+                    });
+                  } else {
+                    await supabase
+                      .from('prayer_interactions')
+                      .insert({
+                        user_id: user.id,
+                        prayer_request_id: selectedRequest.id
+                      });
+                    setPrayedRequests(prev => new Set([...prev, selectedRequest.id]));
+                  }
+                }}
+                hasPrayed={prayedRequests.has(selectedRequest.id)}
+              />
+            ) : (
             {prayerRequests.map((request) => (
               <div key={request.id} className="p-4">
                 <PrayerRequestCard
                   key={request.id}
+                  id={request.id}
                   content={request.content}
                   username={request.profiles?.username || "Anonymous"}
                   timestamp={request.created_at}
                   isPrivate={!request.is_public}
-                  prayerCount={0}
-                  onPrayClick={() => {
-                    console.log("Prayed for request:", request.id);
+                  prayerCount={request.prayer_count || 0}
+                  hasPrayed={prayedRequests.has(request.id)}
+                  onPrayClick={async () => {
+                    if (!user) return;
+                    const hasPrayed = prayedRequests.has(request.id);
+                    
+                    if (hasPrayed) {
+                      await supabase
+                        .from('prayer_interactions')
+                        .delete()
+                        .eq('user_id', user.id)
+                        .eq('prayer_request_id', request.id);
+                      setPrayedRequests(prev => {
+                        const next = new Set(prev);
+                        next.delete(request.id);
+                        return next;
+                      });
+                    } else {
+                      await supabase
+                        .from('prayer_interactions')
+                        .insert({
+                          user_id: user.id,
+                          prayer_request_id: request.id
+                        });
+                      setPrayedRequests(prev => new Set([...prev, request.id]));
+                    }
                   }}
+                  onCommentClick={() => setSelectedRequest(request)}
                 />
               </div>
             ))}
+            )}
           </div>
         </div>
 
         {/* Right Sidebar */}
         <aside className="hidden lg:block w-[350px] p-4 sticky top-[72px] h-[calc(100vh-72px)]">
-          <div className="bg-muted rounded-lg p-4">
-            <h3 className="font-semibold mb-4">Most Prayed For</h3>
-            {/* Add trending prayer requests here */}
+          <div className="space-y-6">
+            {/* Featured Section */}
+            <div>
+              <h3 className="font-semibold mb-4 text-lg">Featured</h3>
+              <div className="bg-card rounded-lg overflow-hidden shadow-md">
+                <img
+                  src="https://images.unsplash.com/photo-1519834785169-98be25ec3f84?q=80&w=2000"
+                  alt="Daily Devotional"
+                  className="w-full h-40 object-cover"
+                />
+                <div className="p-4">
+                  <div className="text-xs text-muted-foreground mb-1">
+                    FEATURED
+                  </div>
+                  <h4 className="font-semibold mb-2">Daily Devotional App</h4>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Start your day with inspiring devotionals. Join millions of
+                    Christians worldwide.
+                  </p>
+                  <Button variant="secondary" className="w-full">
+                    Download Now
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Community Events */}
+            <div>
+              <h3 className="font-semibold mb-4 text-lg">Community Events</h3>
+              <div className="bg-card rounded-lg overflow-hidden shadow-md">
+                <div className="p-4">
+                  <div className="text-xs text-muted-foreground mb-1">
+                    COMMUNITY
+                  </div>
+                  <h4 className="font-semibold mb-2">
+                    Online Prayer Conference
+                  </h4>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Join our global prayer conference. 24 hours continuous
+                    prayer.
+                  </p>
+                  <Button variant="secondary" className="w-full">
+                    Register Free
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Sponsored */}
+            <div>
+              <h3 className="font-semibold mb-4 text-lg">Sponsored</h3>
+              <div className="bg-card rounded-lg overflow-hidden shadow-md p-4">
+                <div className="text-sm text-muted-foreground">
+                  Advertisement space
+                </div>
+              </div>
+            </div>
           </div>
         </aside>
 

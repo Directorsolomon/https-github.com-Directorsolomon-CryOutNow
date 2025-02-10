@@ -36,35 +36,22 @@ const LandingPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background overflow-hidden">
+    <div className="min-h-screen bg-white overflow-hidden">
       {/* Gradient Orbs */}
       <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob" />
       <div className="absolute top-0 -right-4 w-72 h-72 bg-yellow-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000" />
       <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000" />
 
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center">
-              <span className="text-2xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 text-transparent bg-clip-text">
+              <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-indigo-600">
                 CryOutNow
               </span>
             </div>
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" onClick={() => navigate("/about")}>
-                About
-              </Button>
-              <Button variant="ghost" onClick={() => navigate("/contact")}>
-                Contact
-              </Button>
-              <Button
-                className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700"
-                onClick={() => navigate("/auth")}
-              >
-                Get Started
-              </Button>
-            </div>
+            <div></div>
           </div>
         </div>
       </nav>
@@ -75,25 +62,15 @@ const LandingPage = () => {
           <div className="lg:grid lg:grid-cols-12 lg:gap-8">
             <div className="sm:text-center md:max-w-2xl md:mx-auto lg:col-span-6 lg:text-left">
               <h1 className="text-4xl tracking-tight font-extrabold sm:text-5xl md:text-6xl lg:text-5xl xl:text-6xl">
-                <span className="block">Connect Through</span>
-                <span className="block bg-gradient-to-r from-violet-600 to-indigo-600 text-transparent bg-clip-text">
-                  Prayer & Faith
+                <span className="block text-gray-900">Welcome to</span>
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-indigo-600">
+                  CryOutNow
                 </span>
               </h1>
               <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-xl lg:text-lg xl:text-xl">
-                Transform your spiritual journey with our modern prayer
-                platform. Share, connect, and grow together in a supportive
-                community powered by faith and technology.
+                A Christian community platform for sharing and supporting prayer
+                requests.
               </p>
-              <div className="mt-8 sm:max-w-lg sm:mx-auto sm:text-center lg:text-left">
-                <Button
-                  onClick={() => navigate("/auth")}
-                  className="w-full sm:w-auto bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700"
-                  size="lg"
-                >
-                  Start Your Journey <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </div>
             </div>
             <div className="mt-12 relative sm:max-w-lg sm:mx-auto lg:mt-0 lg:max-w-none lg:mx-0 lg:col-span-6 lg:flex lg:items-center">
               <div className="relative mx-auto w-full">

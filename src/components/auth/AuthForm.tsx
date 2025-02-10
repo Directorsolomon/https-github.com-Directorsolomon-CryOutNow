@@ -101,12 +101,12 @@ export default function AuthForm() {
   };
 
   return (
-    <div className="bg-background">
+    <div className="bg-white">
       {/* Auth Form */}
       <div className="flex items-center justify-center">
-        <Card className="w-full max-w-[400px] shadow-lg">
+        <Card className="w-full max-w-[400px] shadow-lg bg-white">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">
+            <CardTitle className="text-2xl font-bold text-center text-gray-900">
               {mode === "signin" ? "Welcome back" : "Create an account"}
             </CardTitle>
           </CardHeader>
@@ -144,8 +144,8 @@ export default function AuthForm() {
                   <span className="w-full border-t" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
-                    Or continue with
+                  <span className="bg-white px-2 text-gray-500">
+                    Or continue with email
                   </span>
                 </div>
               </div>
@@ -185,7 +185,7 @@ export default function AuthForm() {
                 </div>
                 <Button
                   type="submit"
-                  className="w-full h-11 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700"
+                  className="w-full h-11 bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700"
                   disabled={isLoading}
                 >
                   {isLoading
