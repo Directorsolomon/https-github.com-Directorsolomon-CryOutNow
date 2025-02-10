@@ -28,7 +28,7 @@ type PrayerRequestFormProps = {
 
 const PrayerRequestForm = ({
   onSubmit = (data) => console.log("Form submitted:", data),
-}: PrayerRequestFormProps) => {
+}: PrayerRequestFormProps = {}) => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -37,12 +37,14 @@ const PrayerRequestForm = ({
     },
   });
 
-  const { user } = useAuth();
+  const { user = null } = useAuth() || {};
 
   const handleSubmit = async (data: z.infer<typeof formSchema>) => {
     try {
-      if (!user)
-        throw new Error("Must be logged in to submit a prayer request");
+      if (!user) {
+        console.error("Must be logged in to submit a prayer request");
+        return;
+      }
 
       // First ensure profile exists
       const { error: profileError } = await supabase.from("profiles").upsert({

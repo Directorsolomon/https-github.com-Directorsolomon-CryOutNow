@@ -1,26 +1,24 @@
 import React from "react";
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
-import { Heart, MessageCircle, Share2 } from "lucide-react";
+import { HandHeart, MessageCircle, Share2 } from "lucide-react";
 
 interface PrayerRequestCardProps {
-  title?: string;
-  description?: string;
-  category?: string;
+  content: string;
   timestamp?: string;
   prayerCount?: number;
   isPrivate?: boolean;
   onPrayClick?: () => void;
+  username?: string;
 }
 
 const PrayerRequestCard = ({
-  title = "Prayer Request",
-  description = "Description of the prayer request",
-  category = "General",
+  content,
   timestamp = new Date().toISOString(),
   prayerCount = 0,
   isPrivate = false,
   onPrayClick = () => {},
+  username,
 }: PrayerRequestCardProps) => {
   return (
     <div className="space-y-3">
@@ -30,7 +28,7 @@ const PrayerRequestCard = ({
           U
         </div>
         <div>
-          <p className="font-semibold">Username</p>
+          <p className="font-semibold">{username}</p>
           <p className="text-sm text-muted-foreground">
             {new Date(timestamp).toLocaleDateString()}
           </p>
@@ -39,13 +37,7 @@ const PrayerRequestCard = ({
 
       {/* Content */}
       <div>
-        <h3 className="font-semibold text-lg">{title}</h3>
-        <p className="text-muted-foreground mt-1">{description}</p>
-        <div className="mt-2">
-          <span className="text-sm bg-primary/10 text-primary px-2 py-1 rounded">
-            {category}
-          </span>
-        </div>
+        <p className="text-muted-foreground mt-1">{content}</p>
       </div>
 
       {/* Action Buttons */}
@@ -56,7 +48,7 @@ const PrayerRequestCard = ({
           className="gap-2 text-muted-foreground hover:text-primary hover:bg-primary/10"
           onClick={onPrayClick}
         >
-          <Heart className="h-4 w-4" />
+          <HandHeart className="h-5 w-5" />
           <span>{prayerCount}</span>
         </Button>
 

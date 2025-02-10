@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { Input } from "./ui/input";
+import { AuthProvider } from "@/lib/auth";
+import PrayerRequestCard from "./PrayerRequestCard";
 import {
   Select,
   SelectContent,
@@ -11,45 +13,13 @@ import { Search, Filter } from "lucide-react";
 
 interface PrayerRequest {
   id: string;
-  title: string;
-  description: string;
-  category: string;
-  timestamp: string;
-  prayerCount: number;
-  isPrivate: boolean;
+  title?: string;
+  description?: string;
+  category?: string;
+  timestamp?: string;
+  prayerCount?: number;
+  isPrivate?: boolean;
 }
-
-interface PrayerRequestCardProps {
-  title: string;
-  description: string;
-  category: string;
-  timestamp: string;
-  prayerCount: number;
-  isPrivate: boolean;
-}
-
-// Temporary placeholder card component until the real one is implemented
-const PrayerRequestCard = ({
-  title = "Prayer Request",
-  description = "Description of the prayer request",
-  category = "General",
-  timestamp = new Date().toISOString(),
-  prayerCount = 0,
-  isPrivate = false,
-}: PrayerRequestCardProps) => {
-  return (
-    <div className="bg-card rounded-lg p-4 shadow-sm border">
-      <h3 className="font-semibold text-lg">{title}</h3>
-      <p className="text-muted-foreground mt-2">{description}</p>
-      <div className="flex justify-between items-center mt-4">
-        <span className="text-sm text-muted-foreground">{category}</span>
-        <span className="text-sm text-muted-foreground">
-          Prayers: {prayerCount}
-        </span>
-      </div>
-    </div>
-  );
-};
 
 interface PrayerRequestGridProps {
   requests?: PrayerRequest[];
@@ -87,11 +57,11 @@ const defaultRequests: PrayerRequest[] = [
   },
 ];
 
-const PrayerRequestGrid = ({
+const PrayerRequestGridInner = ({
   requests = defaultRequests,
   onSearch = () => {},
   onFilter = () => {},
-}: PrayerRequestGridProps) => {
+}: PrayerRequestGridProps = {}) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
 
@@ -138,12 +108,10 @@ const PrayerRequestGrid = ({
 
         {/* Prayer Request Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {requests.map((request) => (
+          {(requests || []).map((request) => (
             <PrayerRequestCard
               key={request.id}
-              title={request.title}
-              description={request.description}
-              category={request.category}
+              content={request.description || ""}
               timestamp={request.timestamp}
               prayerCount={request.prayerCount}
               isPrivate={request.isPrivate}
@@ -152,7 +120,7 @@ const PrayerRequestGrid = ({
         </div>
 
         {/* Empty State */}
-        {requests.length === 0 && (
+        {(!requests || requests.length === 0) && (
           <div className="text-center py-12">
             <Filter className="mx-auto h-12 w-12 text-muted-foreground" />
             <h3 className="mt-4 text-lg font-semibold">
@@ -166,6 +134,10 @@ const PrayerRequestGrid = ({
       </div>
     </div>
   );
+};
+
+const PrayerRequestGrid = (props: PrayerRequestGridProps = {}) => {
+  return <PrayerRequestGridInner {...props} />;
 };
 
 export default PrayerRequestGrid;

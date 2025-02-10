@@ -2,7 +2,7 @@ import React from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Search, Bell, Menu } from "lucide-react";
-import { useAuth } from "@/lib/auth";
+import { useAuth, AuthProvider } from "@/lib/auth";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,12 +16,12 @@ interface HeaderProps {
   userName?: string;
 }
 
-const Header = ({
+const HeaderInner = ({
   onMenuClick = () => {},
   onSearchChange = () => {},
-  userName = { userName },
-}: HeaderProps) => {
-  const { signOut } = useAuth();
+  userName = "Guest",
+}: HeaderProps = {}) => {
+  const { signOut = () => {} } = useAuth() || {};
 
   return (
     <header className="w-full h-[72px] px-4 bg-background border-b flex items-center justify-between fixed top-0 left-0 z-50">
@@ -34,7 +34,7 @@ const Header = ({
         >
           <Menu className="h-5 w-5" />
         </Button>
-        <h1 className="text-xl font-semibold">Prayer Requests</h1>
+        <h1 className="text-xl font-semibold">CryOutNow</h1>
       </div>
 
       <div className="flex-1 max-w-xl mx-4">
@@ -73,6 +73,10 @@ const Header = ({
       </div>
     </header>
   );
+};
+
+const Header = (props: HeaderProps = {}) => {
+  return <HeaderInner {...props} />;
 };
 
 export default Header;

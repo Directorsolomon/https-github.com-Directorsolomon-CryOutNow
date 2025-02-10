@@ -4,22 +4,24 @@ import PrayerRequestForm from "./PrayerRequestForm";
 import PrayerRequestCard from "./PrayerRequestCard";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
-import {
-  Plus,
-  Home as HomeIcon,
-  Search,
-  Bell,
-  User,
-  MessageCircle,
-  Heart,
-} from "lucide-react";
+import { Plus, Home as HomeIcon, Search, Bell, User } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/lib/auth";
+import { useAuth, AuthProvider } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 
 interface HomeProps {
-  // userName?: string;
   showNewRequestDialog?: boolean;
+}
+
+interface PrayerRequest {
+  id: string;
+  content: string;
+  created_at: string;
+  user_id: string;
+  is_public: boolean;
+  profiles: {
+    username: string;
+  };
 }
 
 const SidebarLink = ({
@@ -37,13 +39,13 @@ const SidebarLink = ({
   </Button>
 );
 
-const Home = ({
-  showNewRequestDialog = false,
-}: Omit<HomeProps, "userName">) => {
+const HomeInner = ({ showNewRequestDialog = false }: HomeProps) => {
   const [isDialogOpen, setIsDialogOpen] = React.useState(showNewRequestDialog);
   const { user } = useAuth();
   const [username, setUsername] = React.useState<string>("");
-  const [prayerRequests, setPrayerRequests] = React.useState([]);
+  const [prayerRequests, setPrayerRequests] = React.useState<PrayerRequest[]>(
+    [],
+  );
 
   React.useEffect(() => {
     const fetchUserProfile = async () => {
@@ -75,7 +77,9 @@ const Home = ({
         .select(
           `
           *,
-          user:user_id (*)
+          profiles (
+            username
+          )
         `,
         )
         .order("created_at", { ascending: false });
@@ -85,7 +89,9 @@ const Home = ({
         return;
       }
 
-      setPrayerRequests(data || []);
+      if (data) {
+        setPrayerRequests(data);
+      }
     };
 
     fetchPrayerRequests();
@@ -133,12 +139,14 @@ const Home = ({
               </Button>
             </DialogTrigger>
             <DialogContent>
-              <PrayerRequestForm
-                onSubmit={(data) => {
-                  console.log(data);
-                  setIsDialogOpen(false);
-                }}
-              />
+              <AuthProvider>
+                <PrayerRequestForm
+                  onSubmit={(data) => {
+                    console.log(data);
+                    setIsDialogOpen(false);
+                  }}
+                />
+              </AuthProvider>
             </DialogContent>
           </Dialog>
         </aside>
@@ -148,16 +156,19 @@ const Home = ({
           <div className="p-4 border-b">
             <h2 className="text-xl font-semibold">Home</h2>
           </div>
-          <div className="divide-y">
+          <div className="max-w-2xl mx-auto space-y-4 p-4">
             {prayerRequests.map((request) => (
               <div key={request.id} className="p-4">
                 <PrayerRequestCard
-                  title={request.title}
-                  description={request.description}
-                  category={request.category}
+                  key={request.id}
+                  content={request.content}
+                  username={request.profiles?.username || "Anonymous"}
                   timestamp={request.created_at}
-                  prayerCount={request.prayer_count || 0}
                   isPrivate={!request.is_public}
+                  prayerCount={0}
+                  onPrayClick={() => {
+                    console.log("Prayed for request:", request.id);
+                  }}
                 />
               </div>
             ))}
@@ -181,17 +192,27 @@ const Home = ({
               </Button>
             </DialogTrigger>
             <DialogContent>
-              <PrayerRequestForm
-                onSubmit={(data) => {
-                  console.log(data);
-                  setIsDialogOpen(false);
-                }}
-              />
+              <AuthProvider>
+                <PrayerRequestForm
+                  onSubmit={(data) => {
+                    console.log(data);
+                    setIsDialogOpen(false);
+                  }}
+                />
+              </AuthProvider>
             </DialogContent>
           </Dialog>
         </div>
       </main>
     </div>
+  );
+};
+
+const Home = (props: HomeProps) => {
+  return (
+    <AuthProvider>
+      <HomeInner {...props} />
+    </AuthProvider>
   );
 };
 

@@ -6,13 +6,12 @@ type AuthContextType = {
   session: Session | null;
   user: User | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+  signUp: (email: string, password: string, username: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
-export const AuthContext = createContext<AuthContextType | undefined>(
-  undefined,
-);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function getErrorMessage(error: AuthError): string {
   switch (error.message) {
@@ -39,6 +38,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+
+      // Create profile for OAuth users if it doesn't exist
+      if (session?.user && session.user.app_metadata.provider === "google") {
+        const createProfile = async () => {
+          const { data: existingProfile } = await supabase
+            .from("profiles")
+            .select()
+            .eq("id", session.user.id)
+            .single();
+
+          if (!existingProfile) {
+            const username = session.user.email.split("@")[0];
+            let finalUsername = username;
+            let counter = 1;
+
+            // Keep trying with numbered usernames until we find an available one
+            while (true) {
+              const { data: exists } = await supabase
+                .from("profiles")
+                .select()
+                .eq("username", finalUsername)
+                .single();
+
+              if (!exists) break;
+              finalUsername = `${username}${counter}`;
+              counter++;
+            }
+
+            await supabase.from("profiles").insert([
+              {
+                id: session.user.id,
+                username: finalUsername,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                avatar_url: session.user.user_metadata.avatar_url,
+              },
+            ]);
+          }
+        };
+        createProfile();
+      }
     });
 
     const {
@@ -59,17 +99,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw new Error(getErrorMessage(error));
   };
 
-  const signUp = async (email: string, password: string, fullName: string) => {
-    // First check if user exists
-    const { data: existingUser } = await supabase
+  const signInWithGoogle = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth`,
+          scopes: "email profile",
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
+        },
+      });
+      if (error) {
+        if (error.message.includes("provider is not enabled")) {
+          throw new Error(
+            "Google sign in is not configured. Please contact support.",
+          );
+        }
+        throw new Error(getErrorMessage(error));
+      }
+    } catch (error) {
+      console.error("Google sign in error:", error);
+      throw error;
+    }
+  };
+
+  const signUp = async (email: string, password: string, username: string) => {
+    // First check if username exists
+    const { data: existingUsername } = await supabase
       .from("profiles")
       .select()
-      .eq("email", email)
+      .eq("username", username)
       .single();
 
-    if (existingUser) {
+    if (existingUsername) {
       throw new Error(
-        "This email is already registered. Please sign in instead.",
+        "This username is already taken. Please choose another one.",
       );
     }
 
@@ -80,7 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       options: {
         emailRedirectTo: `${window.location.origin}/auth`,
         data: {
-          full_name: fullName,
+          username,
         },
       },
     });
@@ -92,10 +159,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { error: profileError } = await supabase.from("profiles").insert([
       {
         id: data.user.id,
-        full_name: fullName,
+        username,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        username: email.split("@")[0], // Default username from email
         avatar_url: null,
       },
     ]);
@@ -112,7 +178,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, signIn, signUp, signOut }}>
+    <AuthContext.Provider
+      value={{ session, user, signIn, signInWithGoogle, signUp, signOut }}
+    >
       {children}
     </AuthContext.Provider>
   );
