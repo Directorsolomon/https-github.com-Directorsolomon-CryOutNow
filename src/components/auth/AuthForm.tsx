@@ -101,25 +101,9 @@ export default function AuthForm() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <span className="text-2xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 text-transparent bg-clip-text">
-                CryOutNow
-              </span>
-            </div>
-          </div>
-        </div>
-      </nav>
-
+    <div className="bg-background">
       {/* Auth Form */}
-      <div className="container flex items-center justify-center min-h-screen py-20">
+      <div className="flex items-center justify-center">
         <Card className="w-full max-w-[400px] shadow-lg">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-center">

@@ -2,6 +2,7 @@ import React from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Search, Bell, Menu } from "lucide-react";
+import { ThemeToggle } from "./theme-toggle";
 import { useAuth, AuthProvider } from "@/lib/auth";
 import {
   DropdownMenu,
@@ -49,6 +50,7 @@ const HeaderInner = ({
       </div>
 
       <div className="flex items-center gap-2">
+        <ThemeToggle />
         <Button variant="ghost" size="icon">
           <Bell className="h-5 w-5" />
         </Button>
