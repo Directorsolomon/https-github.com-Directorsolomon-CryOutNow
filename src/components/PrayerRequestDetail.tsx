@@ -51,7 +51,7 @@ export default function PrayerRequestDetail({
       .select(
         `
         *,
-        profiles (username)
+        profiles!comments_profile_id_fkey (username)
       `,
       )
       .eq("prayer_request_id", requestId)
@@ -97,6 +97,7 @@ export default function PrayerRequestDetail({
         prayer_request_id: requestId,
         content: newComment,
         user_id: user.id,
+        profile_id: user.id,
       });
 
       if (error) throw error;

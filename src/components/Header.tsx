@@ -3,9 +3,10 @@ import { Button } from "./ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import NotificationsPanel from "./NotificationsPanel";
 import { Input } from "./ui/input";
-import { Search, Bell, Menu } from "lucide-react";
+import { Search, Bell, Menu, BellDot } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
-import { useAuth, AuthProvider } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +25,45 @@ const HeaderInner = ({
   onSearchChange = () => {},
   userName = "Guest",
 }: HeaderProps = {}) => {
-  const { signOut = () => {}, user } = useAuth() || {};
+  const { signOut = () => {} } = useAuth() || {};
+  const [unreadCount, setUnreadCount] = React.useState(0);
+  const { user } = useAuth();
+
+  React.useEffect(() => {
+    if (!user) return;
+
+    // Initial fetch of unread notifications
+    const fetchUnreadCount = async () => {
+      const { count } = await supabase
+        .from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("is_read", false);
+
+      setUnreadCount(count || 0);
+    };
+
+    fetchUnreadCount();
+
+    // Subscribe to notifications changes
+    const channel = supabase
+      .channel(`notifications-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => fetchUnreadCount(),
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   return (
     <header className="w-full h-[72px] px-4 bg-background border-b flex items-center justify-between fixed top-0 left-0 z-50">
@@ -56,7 +95,16 @@ const HeaderInner = ({
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
+              {unreadCount > 0 ? (
+                <div className="relative">
+                  <BellDot className="h-5 w-5" />
+                  <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                </div>
+              ) : (
+                <Bell className="h-5 w-5" />
+              )}
             </Button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-[400px] p-0">
@@ -91,7 +139,7 @@ const HeaderInner = ({
   );
 };
 
-const Header = (props: HeaderProps = {}) => {
+const Header = (props: HeaderProps) => {
   return <HeaderInner {...props} />;
 };
 

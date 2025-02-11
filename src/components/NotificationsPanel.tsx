@@ -60,6 +60,16 @@ export default function NotificationsPanel() {
     };
   }, [user]);
 
+  const markAllAsRead = async () => {
+    if (!user) return;
+
+    await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .eq("user_id", user.id)
+      .eq("is_read", false);
+  };
+
   const markAsRead = async (id: string) => {
     await supabase.from("notifications").update({ is_read: true }).eq("id", id);
 
@@ -70,6 +80,13 @@ export default function NotificationsPanel() {
 
   return (
     <ScrollArea className="h-[400px] w-[350px] p-4">
+      {notifications.length > 0 && (
+        <div className="flex justify-end mb-4">
+          <Button variant="ghost" size="sm" onClick={markAllAsRead}>
+            Mark all as read
+          </Button>
+        </div>
+      )}
       <div className="space-y-4">
         {notifications.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
