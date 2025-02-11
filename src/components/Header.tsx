@@ -1,5 +1,7 @@
 import React from "react";
 import { Button } from "./ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import NotificationsPanel from "./NotificationsPanel";
 import { Input } from "./ui/input";
 import { Search, Bell, Menu } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
@@ -51,9 +53,16 @@ const HeaderInner = ({
 
       <div className="flex items-center gap-2">
         <ThemeToggle />
-        <Button variant="ghost" size="icon">
-          <Bell className="h-5 w-5" />
-        </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <Bell className="h-5 w-5" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-[400px] p-0">
+            <NotificationsPanel />
+          </PopoverContent>
+        </Popover>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

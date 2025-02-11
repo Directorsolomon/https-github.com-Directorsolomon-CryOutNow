@@ -2,12 +2,14 @@ import React from "react";
 import Header from "./Header";
 import PrayerRequestForm from "./PrayerRequestForm";
 import PrayerRequestCard from "./PrayerRequestCard";
+import PrayerRequestDetail from "./PrayerRequestDetail";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 import { Plus, Home as HomeIcon, Search, Bell, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth, AuthProvider } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "./ui/use-toast";
 
 interface HomeProps {
   showNewRequestDialog?: boolean;
@@ -23,6 +25,7 @@ interface PrayerRequest {
     username: string;
   };
   prayer_count?: number;
+  comment_count?: number;
 }
 
 const SidebarLink = ({
@@ -41,8 +44,12 @@ const SidebarLink = ({
 );
 
 const HomeInner = ({ showNewRequestDialog = false }: HomeProps) => {
-  const [selectedRequest, setSelectedRequest] = useState<PrayerRequest | null>(null);
-  const [prayedRequests, setPrayedRequests] = useState<Set<string>>(new Set());
+  const { toast } = useToast();
+  const [selectedRequest, setSelectedRequest] =
+    React.useState<PrayerRequest | null>(null);
+  const [prayedRequests, setPrayedRequests] = React.useState<Set<string>>(
+    new Set(),
+  );
   const [isDialogOpen, setIsDialogOpen] = React.useState(showNewRequestDialog);
   const { user } = useAuth();
   const [username, setUsername] = React.useState<string>("");
@@ -76,47 +83,51 @@ const HomeInner = ({ showNewRequestDialog = false }: HomeProps) => {
   React.useEffect(() => {
     const fetchPrayedRequests = async () => {
       if (!user) return;
-      
+
       const { data } = await supabase
-        .from('prayer_interactions')
-        .select('prayer_request_id')
-        .eq('user_id', user.id);
+        .from("prayer_interactions")
+        .select("prayer_request_id")
+        .eq("user_id", user.id);
 
       if (data) {
-        setPrayedRequests(new Set(data.map(item => item.prayer_request_id)));
+        setPrayedRequests(new Set(data.map((item) => item.prayer_request_id)));
       }
     };
 
     fetchPrayedRequests();
   }, [user]);
 
-  React.useEffect(() => {
-    const fetchPrayerRequests = async () => {
-      const { data, error } = await supabase
-        .from("prayer_requests")
-        .select(
-          `
-          *,
-          profiles (username),
-          prayer_interactions (count)
-        `,
-        .eq('is_public', true)
-        )
-        .order("created_at", { ascending: false });
+  const fetchPrayerRequests = async () => {
+    const { data, error } = await supabase
+      .from("prayer_requests")
+      .select(
+        `
+        *,
+        profiles (username),
+        prayer_interactions:prayer_interactions(count),
+        comments:comments(count)
+      `,
+      )
+      .eq("is_public", true)
+      .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Error fetching prayer requests:", error);
-        return;
-      }
+    if (error) {
+      console.error("Error fetching prayer requests:", error);
+      return;
+    }
 
-      if (data) {
-        setPrayerRequests(data.map(request => ({
+    if (data) {
+      setPrayerRequests(
+        data.map((request) => ({
           ...request,
-          prayer_count: request.prayer_interactions?.[0]?.count || 0
-        })));
-      }
-    };
+          prayer_count: request.prayer_interactions?.[0]?.count || 0,
+          comment_count: request.comments?.[0]?.count || 0,
+        })),
+      );
+    }
+  };
 
+  React.useEffect(() => {
     fetchPrayerRequests();
 
     // Subscribe to realtime changes
@@ -133,6 +144,93 @@ const HomeInner = ({ showNewRequestDialog = false }: HomeProps) => {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  const handlePrayerClick = async (request: PrayerRequest) => {
+    if (!user) return;
+
+    const hasPrayed = prayedRequests.has(request.id);
+
+    // Optimistically update UI
+    setPrayedRequests((prev) => {
+      const next = new Set(prev);
+      if (hasPrayed) {
+        next.delete(request.id);
+      } else {
+        next.add(request.id);
+      }
+      return next;
+    });
+
+    // Optimistically update prayer count
+    setPrayerRequests((prev) =>
+      prev.map((r) =>
+        r.id === request.id
+          ? {
+              ...r,
+              prayer_count: (r.prayer_count || 0) + (hasPrayed ? -1 : 1),
+            }
+          : r,
+      ),
+    );
+
+    try {
+      if (hasPrayed) {
+        await supabase
+          .from("prayer_interactions")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("prayer_request_id", request.id);
+      } else {
+        const { error } = await supabase.from("prayer_interactions").insert({
+          user_id: user.id,
+          prayer_request_id: request.id,
+        });
+
+        if (!error) {
+          toast({
+            title: "Prayer Recorded",
+            description: "Your prayer support has been recorded.",
+          });
+
+          // Send notification to the prayer request owner
+          await supabase.from("notifications").insert({
+            user_id: request.user_id,
+            type: "prayer",
+            content: `${username || "Someone"} is praying for your request`,
+            related_id: request.id,
+          });
+        }
+      }
+    } catch (error) {
+      // Revert optimistic updates if the API call fails
+      setPrayedRequests((prev) => {
+        const next = new Set(prev);
+        if (hasPrayed) {
+          next.add(request.id);
+        } else {
+          next.delete(request.id);
+        }
+        return next;
+      });
+
+      setPrayerRequests((prev) =>
+        prev.map((r) =>
+          r.id === request.id
+            ? {
+                ...r,
+                prayer_count: (r.prayer_count || 0) + (hasPrayed ? 1 : -1),
+              }
+            : r,
+        ),
+      );
+
+      toast({
+        title: "Error",
+        description: "Failed to update prayer status. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -164,9 +262,9 @@ const HomeInner = ({ showNewRequestDialog = false }: HomeProps) => {
             <DialogContent>
               <AuthProvider>
                 <PrayerRequestForm
-                  onSubmit={(data) => {
-                    console.log(data);
+                  onSubmit={() => {
                     setIsDialogOpen(false);
+                    fetchPrayerRequests();
                   }}
                 />
               </AuthProvider>
@@ -189,74 +287,25 @@ const HomeInner = ({ showNewRequestDialog = false }: HomeProps) => {
                 prayerCount={selectedRequest.prayer_count || 0}
                 isPrivate={!selectedRequest.is_public}
                 onBack={() => setSelectedRequest(null)}
-                onPrayClick={async () => {
-                  if (!user) return;
-                  const hasPrayed = prayedRequests.has(selectedRequest.id);
-                  
-                  if (hasPrayed) {
-                    await supabase
-                      .from('prayer_interactions')
-                      .delete()
-                      .eq('user_id', user.id)
-                      .eq('prayer_request_id', selectedRequest.id);
-                    setPrayedRequests(prev => {
-                      const next = new Set(prev);
-                      next.delete(selectedRequest.id);
-                      return next;
-                    });
-                  } else {
-                    await supabase
-                      .from('prayer_interactions')
-                      .insert({
-                        user_id: user.id,
-                        prayer_request_id: selectedRequest.id
-                      });
-                    setPrayedRequests(prev => new Set([...prev, selectedRequest.id]));
-                  }
-                }}
+                onPrayClick={() => handlePrayerClick(selectedRequest)}
                 hasPrayed={prayedRequests.has(selectedRequest.id)}
               />
             ) : (
-            {prayerRequests.map((request) => (
-              <div key={request.id} className="p-4">
-                <PrayerRequestCard
-                  key={request.id}
-                  id={request.id}
-                  content={request.content}
-                  username={request.profiles?.username || "Anonymous"}
-                  timestamp={request.created_at}
-                  isPrivate={!request.is_public}
-                  prayerCount={request.prayer_count || 0}
-                  hasPrayed={prayedRequests.has(request.id)}
-                  onPrayClick={async () => {
-                    if (!user) return;
-                    const hasPrayed = prayedRequests.has(request.id);
-                    
-                    if (hasPrayed) {
-                      await supabase
-                        .from('prayer_interactions')
-                        .delete()
-                        .eq('user_id', user.id)
-                        .eq('prayer_request_id', request.id);
-                      setPrayedRequests(prev => {
-                        const next = new Set(prev);
-                        next.delete(request.id);
-                        return next;
-                      });
-                    } else {
-                      await supabase
-                        .from('prayer_interactions')
-                        .insert({
-                          user_id: user.id,
-                          prayer_request_id: request.id
-                        });
-                      setPrayedRequests(prev => new Set([...prev, request.id]));
-                    }
-                  }}
-                  onCommentClick={() => setSelectedRequest(request)}
-                />
-              </div>
-            ))}
+              prayerRequests.map((request) => (
+                <div key={request.id} className="p-4">
+                  <PrayerRequestCard
+                    content={request.content}
+                    username={request.profiles?.username || "Anonymous"}
+                    timestamp={request.created_at}
+                    isPrivate={!request.is_public}
+                    prayerCount={request.prayer_count || 0}
+                    commentCount={request.comment_count || 0}
+                    hasPrayed={prayedRequests.has(request.id)}
+                    onPrayClick={() => handlePrayerClick(request)}
+                    onCommentClick={() => setSelectedRequest(request)}
+                  />
+                </div>
+              ))
             )}
           </div>
         </div>
@@ -334,9 +383,9 @@ const HomeInner = ({ showNewRequestDialog = false }: HomeProps) => {
             <DialogContent>
               <AuthProvider>
                 <PrayerRequestForm
-                  onSubmit={(data) => {
-                    console.log(data);
+                  onSubmit={() => {
                     setIsDialogOpen(false);
+                    fetchPrayerRequests();
                   }}
                 />
               </AuthProvider>

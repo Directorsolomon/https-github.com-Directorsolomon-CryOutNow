@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import CommentDialog from "./CommentDialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { HandHeart, ArrowLeft } from "lucide-react";
@@ -38,10 +39,31 @@ export default function PrayerRequestDetail({
   onPrayClick,
   hasPrayed,
 }: PrayerRequestDetailProps) {
+  const [isCommentDialogOpen, setIsCommentDialogOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const { user } = useAuth();
   const { toast } = useToast();
+
+  const fetchComments = async () => {
+    const { data, error } = await supabase
+      .from("comments")
+      .select(
+        `
+        *,
+        profiles (username)
+      `,
+      )
+      .eq("prayer_request_id", requestId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching comments:", error);
+      return;
+    }
+
+    setComments(data || []);
+  };
 
   useEffect(() => {
     fetchComments();
@@ -65,26 +87,6 @@ export default function PrayerRequestDetail({
       supabase.removeChannel(channel);
     };
   }, [requestId]);
-
-  const fetchComments = async () => {
-    const { data, error } = await supabase
-      .from("comments")
-      .select(
-        `
-        *,
-        profiles (username)
-      `,
-      )
-      .eq("prayer_request_id", requestId)
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      console.error("Error fetching comments:", error);
-      return;
-    }
-
-    setComments(data || []);
-  };
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
