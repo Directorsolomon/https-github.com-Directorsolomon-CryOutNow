@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { useRoutes, Routes, Route, Navigate } from "react-router-dom";
 import Home from "./components/home";
 import LandingPage from "./components/LandingPage";
+import ProfilePage from "./components/ProfilePage";
 import AuthForm from "./components/auth/AuthForm";
 import { AuthProvider, useAuth } from "./lib/auth";
 import routes from "tempo-routes";
@@ -9,11 +10,13 @@ import { Toaster } from "./components/ui/toaster";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
-  // Redirect to home if authenticated and trying to access auth page
-  if (session && window.location.pathname === "/auth") {
-    return <Navigate to="/home" replace />;
-  }
-  if (!session) return <Navigate to="/auth" replace />;
+  if (!session) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
+function RedirectIfAuthenticated({ children }: { children: React.ReactNode }) {
+  const { session } = useAuth();
+  if (session) return <Navigate to="/home" replace />;
   return <>{children}</>;
 }
 
@@ -28,11 +31,11 @@ function AppRoutes() {
       <Routes>
         <Route
           path="/"
-          element={session ? <Navigate to="/home" replace /> : <LandingPage />}
-        />
-        <Route
-          path="/auth"
-          element={session ? <Navigate to="/home" replace /> : <AuthForm />}
+          element={
+            <RedirectIfAuthenticated>
+              <LandingPage />
+            </RedirectIfAuthenticated>
+          }
         />
         <Route
           path="/home"
@@ -43,6 +46,14 @@ function AppRoutes() {
           }
         />
         {import.meta.env.VITE_TEMPO === "true" && <Route path="/tempobook/*" />}
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>

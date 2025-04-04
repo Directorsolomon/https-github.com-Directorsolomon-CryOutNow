@@ -68,6 +68,9 @@ export default function NotificationsPanel() {
       .update({ is_read: true })
       .eq("user_id", user.id)
       .eq("is_read", false);
+
+    // Dispatch event to update the counter in the header
+    window.dispatchEvent(new Event("notificationsRead"));
   };
 
   const markAsRead = async (id: string) => {
@@ -76,7 +79,40 @@ export default function NotificationsPanel() {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)),
     );
+
+    // Dispatch event to update the counter in the header
+    window.dispatchEvent(new Event("notificationsRead"));
   };
+
+  // Mark notification as read when clicked
+  const handleNotificationClick = async (notification: Notification) => {
+    if (!notification.is_read) {
+      await markAsRead(notification.id);
+    }
+  };
+
+  // Mark all visible notifications as read when panel opens
+  useEffect(() => {
+    const markVisibleAsRead = async () => {
+      if (!user || notifications.length === 0) return;
+
+      const unreadNotifications = notifications.filter((n) => !n.is_read);
+      if (unreadNotifications.length === 0) return;
+
+      // Mark all unread notifications as read
+      await markAllAsRead();
+
+      // Update local state
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+
+      // Dispatch event to update the counter in the header
+      window.dispatchEvent(new Event("notificationsRead"));
+    };
+
+    // Small delay to ensure the panel is fully visible before marking as read
+    const timer = setTimeout(markVisibleAsRead, 500);
+    return () => clearTimeout(timer);
+  }, [notifications.length, user]);
 
   return (
     <ScrollArea className="h-[400px] w-[350px] p-4">
@@ -97,7 +133,8 @@ export default function NotificationsPanel() {
           notifications.map((notification) => (
             <div
               key={notification.id}
-              className={`flex items-start gap-3 p-3 rounded-lg ${notification.is_read ? "bg-background" : "bg-accent"}`}
+              className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer hover:bg-accent/50 ${notification.is_read ? "bg-background" : "bg-accent"}`}
+              onClick={() => handleNotificationClick(notification)}
             >
               <div className="flex-1">
                 <p className="text-sm">{notification.content}</p>
@@ -111,7 +148,10 @@ export default function NotificationsPanel() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => markAsRead(notification.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    markAsRead(notification.id);
+                  }}
                 >
                   <Check className="h-4 w-4" />
                 </Button>

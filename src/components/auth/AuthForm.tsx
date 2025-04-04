@@ -159,7 +159,7 @@ export default function AuthForm() {
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       required
-                      className="h-11"
+                      className="h-11 text-black"
                     />
                   </div>
                 )}
@@ -170,7 +170,7 @@ export default function AuthForm() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="h-11"
+                    className="h-11 text-black"
                   />
                 </div>
                 <div className="space-y-2">
@@ -180,7 +180,7 @@ export default function AuthForm() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="h-11"
+                    className="h-11 text-black"
                   />
                 </div>
                 <Button
@@ -197,7 +197,7 @@ export default function AuthForm() {
                 <Button
                   type="button"
                   variant="link"
-                  className="w-full"
+                  className="w-full text-black font-medium"
                   onClick={() =>
                     setMode(mode === "signin" ? "signup" : "signin")
                   }

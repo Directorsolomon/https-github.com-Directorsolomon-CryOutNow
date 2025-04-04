@@ -13,6 +13,8 @@ interface PrayerRequestCardProps {
   onCommentClick?: () => void;
   username?: string;
   hasPrayed?: boolean;
+  imageUrl?: string | null;
+  avatarUrl?: string | null;
 }
 
 const PrayerRequestCard = ({
@@ -25,13 +27,23 @@ const PrayerRequestCard = ({
   onCommentClick = () => {},
   username = "Anonymous",
   hasPrayed = false,
+  imageUrl = null,
+  avatarUrl = null,
 }: PrayerRequestCardProps) => {
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 bg-background p-4 rounded-lg border">
       {/* User Info */}
       <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-          {username.charAt(0)}
+        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={username}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            username.charAt(0)
+          )}
         </div>
         <div>
           <p className="font-semibold">{username}</p>
@@ -44,6 +56,15 @@ const PrayerRequestCard = ({
       {/* Content */}
       <div>
         <p className="text-muted-foreground mt-1">{content}</p>
+        {imageUrl && (
+          <div className="mt-3 rounded-md overflow-hidden">
+            <img
+              src={imageUrl}
+              alt="Attached image"
+              className="w-full max-h-64 object-cover rounded-md"
+            />
+          </div>
+        )}
       </div>
 
       {/* Action Buttons */}

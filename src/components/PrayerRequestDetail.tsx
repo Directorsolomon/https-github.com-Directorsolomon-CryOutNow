@@ -13,6 +13,7 @@ interface Comment {
   created_at: string;
   profiles: {
     username: string;
+    avatar_url?: string | null;
   };
 }
 
@@ -26,6 +27,9 @@ interface PrayerRequestDetailProps {
   onBack: () => void;
   onPrayClick: () => void;
   hasPrayed: boolean;
+  onCommentAdded?: () => void;
+  imageUrl?: string | null;
+  avatarUrl?: string | null;
 }
 
 export default function PrayerRequestDetail({
@@ -38,6 +42,8 @@ export default function PrayerRequestDetail({
   onBack,
   onPrayClick,
   hasPrayed,
+  imageUrl,
+  avatarUrl,
 }: PrayerRequestDetailProps) {
   const [isCommentDialogOpen, setIsCommentDialogOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -51,7 +57,7 @@ export default function PrayerRequestDetail({
       .select(
         `
         *,
-        profiles!comments_profile_id_fkey (username)
+        profiles!comments_profile_id_fkey (username, avatar_url)
       `,
       )
       .eq("prayer_request_id", requestId)
@@ -102,6 +108,8 @@ export default function PrayerRequestDetail({
 
       if (error) throw error;
 
+      // Notify parent component to update comment count
+      onCommentAdded?.();
       setNewComment("");
     } catch (error) {
       toast({
@@ -125,8 +133,16 @@ export default function PrayerRequestDetail({
       {/* Prayer Request */}
       <div className="space-y-4">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-            {username.charAt(0)}
+          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={username}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              username.charAt(0)
+            )}
           </div>
           <div>
             <p className="font-semibold">{username}</p>
@@ -137,6 +153,16 @@ export default function PrayerRequestDetail({
         </div>
 
         <p className="text-muted-foreground">{content}</p>
+
+        {imageUrl && (
+          <div className="mt-3 rounded-md overflow-hidden">
+            <img
+              src={imageUrl}
+              alt="Attached image"
+              className="w-full max-h-80 object-cover rounded-md"
+            />
+          </div>
+        )}
 
         <Button
           variant="ghost"
@@ -157,8 +183,16 @@ export default function PrayerRequestDetail({
         <div className="space-y-4">
           {comments.map((comment) => (
             <div key={comment.id} className="flex gap-3">
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm">
-                {comment.profiles.username.charAt(0)}
+              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm overflow-hidden">
+                {comment.profiles.avatar_url ? (
+                  <img
+                    src={comment.profiles.avatar_url}
+                    alt={comment.profiles.username}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  comment.profiles.username.charAt(0)
+                )}
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2">

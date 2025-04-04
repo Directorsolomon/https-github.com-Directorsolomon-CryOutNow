@@ -23,9 +23,11 @@ interface PrayerRequest {
   is_public: boolean;
   profiles: {
     username: string;
+    avatar_url?: string | null;
   };
   prayer_count?: number;
   comment_count?: number;
+  image_url?: string | null;
 }
 
 const SidebarLink = ({
@@ -56,6 +58,7 @@ const HomeInner = ({ showNewRequestDialog = false }: HomeProps) => {
   const [prayerRequests, setPrayerRequests] = React.useState<PrayerRequest[]>(
     [],
   );
+  const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
     const fetchUserProfile = async () => {
@@ -98,32 +101,44 @@ const HomeInner = ({ showNewRequestDialog = false }: HomeProps) => {
   }, [user]);
 
   const fetchPrayerRequests = async () => {
-    const { data, error } = await supabase
-      .from("prayer_requests")
-      .select(
-        `
-        *,
-        profiles (username),
-        prayer_interactions:prayer_interactions(count),
-        comments:comments(count)
-      `,
-      )
-      .eq("is_public", true)
-      .order("created_at", { ascending: false });
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("prayer_requests")
+        .select(
+          `
+          *,
+          profiles (username, avatar_url),
+          prayer_interactions:prayer_interactions(count),
+          comments:comments(count)
+        `,
+        )
+        .eq("is_public", true)
+        .order("created_at", { ascending: false });
 
-    if (error) {
+      if (error) {
+        console.error("Error fetching prayer requests:", error);
+        return;
+      }
+
+      if (data) {
+        setPrayerRequests(
+          data.map((request) => ({
+            ...request,
+            prayer_count: request.prayer_interactions?.[0]?.count || 0,
+            comment_count: request.comments?.[0]?.count || 0,
+          })),
+        );
+      }
+    } catch (error) {
       console.error("Error fetching prayer requests:", error);
-      return;
-    }
-
-    if (data) {
-      setPrayerRequests(
-        data.map((request) => ({
-          ...request,
-          prayer_count: request.prayer_interactions?.[0]?.count || 0,
-          comment_count: request.comments?.[0]?.count || 0,
-        })),
-      );
+      toast({
+        title: "Error",
+        description: "Failed to load prayer requests",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -237,20 +252,11 @@ const HomeInner = ({ showNewRequestDialog = false }: HomeProps) => {
       <Header userName={username || "Guest"} />
 
       {/* Main Content */}
-      <main className="pt-[72px] grid grid-cols-1 md:grid-cols-[auto,1fr,auto] max-w-7xl mx-auto gap-4">
+      <main className="pt-[72px] grid grid-cols-1 md:grid-cols-[250px,1fr] lg:grid-cols-[250px,1fr,350px] max-w-7xl mx-auto gap-4">
         {/* Left Sidebar */}
         <aside className="hidden md:flex flex-col gap-2 p-4 sticky top-[72px] h-[calc(100vh-72px)]">
           <SidebarLink active>
             <HomeIcon className="h-5 w-5" /> Home
-          </SidebarLink>
-          <SidebarLink>
-            <Search className="h-5 w-5" /> Explore
-          </SidebarLink>
-          <SidebarLink>
-            <Bell className="h-5 w-5" /> Notifications
-          </SidebarLink>
-          <SidebarLink>
-            <User className="h-5 w-5" /> Profile
           </SidebarLink>
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -278,7 +284,14 @@ const HomeInner = ({ showNewRequestDialog = false }: HomeProps) => {
             <h2 className="text-xl font-semibold">Home</h2>
           </div>
           <div className="max-w-2xl mx-auto space-y-4 p-4">
-            {selectedRequest ? (
+            {isLoading ? (
+              <div className="min-h-[300px] flex items-center justify-center">
+                <div className="animate-pulse text-center">
+                  <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+                  <p className="text-lg">Loading prayer requests...</p>
+                </div>
+              </div>
+            ) : selectedRequest ? (
               <PrayerRequestDetail
                 requestId={selectedRequest.id}
                 content={selectedRequest.content}
@@ -289,8 +302,29 @@ const HomeInner = ({ showNewRequestDialog = false }: HomeProps) => {
                 onBack={() => setSelectedRequest(null)}
                 onPrayClick={() => handlePrayerClick(selectedRequest)}
                 hasPrayed={prayedRequests.has(selectedRequest.id)}
+                imageUrl={selectedRequest.image_url}
+                avatarUrl={selectedRequest.profiles?.avatar_url}
+                onCommentAdded={() => {
+                  // Optimistically update the comment count
+                  setPrayerRequests((prev) =>
+                    prev.map((r) =>
+                      r.id === selectedRequest.id
+                        ? { ...r, comment_count: (r.comment_count || 0) + 1 }
+                        : r,
+                    ),
+                  );
+                  // Update the selected request
+                  setSelectedRequest((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          comment_count: (prev.comment_count || 0) + 1,
+                        }
+                      : null,
+                  );
+                }}
               />
-            ) : (
+            ) : prayerRequests.length > 0 ? (
               prayerRequests.map((request) => (
                 <div key={request.id} className="p-4">
                   <PrayerRequestCard
@@ -301,17 +335,28 @@ const HomeInner = ({ showNewRequestDialog = false }: HomeProps) => {
                     prayerCount={request.prayer_count || 0}
                     commentCount={request.comment_count || 0}
                     hasPrayed={prayedRequests.has(request.id)}
+                    imageUrl={request.image_url}
+                    avatarUrl={request.profiles?.avatar_url}
                     onPrayClick={() => handlePrayerClick(request)}
                     onCommentClick={() => setSelectedRequest(request)}
                   />
                 </div>
               ))
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">
+                  No prayer requests found
+                </p>
+                <Button onClick={() => setIsDialogOpen(true)} className="mt-4">
+                  Create Your First Prayer Request
+                </Button>
+              </div>
             )}
           </div>
         </div>
 
         {/* Right Sidebar */}
-        <aside className="hidden lg:block w-[350px] p-4 sticky top-[72px] h-[calc(100vh-72px)]">
+        <aside className="hidden lg:block p-4 sticky top-[72px] h-[calc(100vh-72px)]">
           <div className="space-y-6">
             {/* Featured Section */}
             <div>
@@ -376,8 +421,12 @@ const HomeInner = ({ showNewRequestDialog = false }: HomeProps) => {
         <div className="fixed bottom-6 right-6 md:hidden z-10">
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="lg" className="rounded-full h-14 w-14 shadow-lg">
-                <Plus className="h-6 w-6" />
+              <Button
+                size="lg"
+                className="rounded-full h-16 w-auto px-6 shadow-lg bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2"
+              >
+                <Plus className="h-5 w-5" />
+                <span className="font-medium">New Prayer</span>
               </Button>
             </DialogTrigger>
             <DialogContent>

@@ -1,9 +1,18 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import NotificationsPanel from "./NotificationsPanel";
 import { Input } from "./ui/input";
-import { Search, Bell, Menu, BellDot } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
+import {
+  Search,
+  Bell,
+  BellDot,
+  Menu,
+  User,
+  Settings,
+  LogOut,
+} from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
@@ -11,36 +20,69 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
+import { useNavigate } from "react-router-dom";
 
 interface HeaderProps {
   onMenuClick?: () => void;
   onSearchChange?: (value: string) => void;
   userName?: string;
+  avatarUrl?: string | null;
 }
 
 const HeaderInner = ({
   onMenuClick = () => {},
   onSearchChange = () => {},
   userName = "Guest",
+  avatarUrl = null,
 }: HeaderProps = {}) => {
-  const { signOut = () => {} } = useAuth() || {};
+  const { signOut, user } = useAuth();
   const [unreadCount, setUnreadCount] = React.useState(0);
-  const { user } = useAuth();
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(
+    avatarUrl,
+  );
+  const navigate = useNavigate();
 
   React.useEffect(() => {
     if (!user) return;
 
+    // Fetch user profile to get avatar URL if not provided
+    const fetchUserProfile = async () => {
+      if (avatarUrl === null) {
+        try {
+          const { data, error } = await supabase
+            .from("profiles")
+            .select("avatar_url")
+            .eq("id", user.id)
+            .single();
+
+          if (!error && data) {
+            setProfileAvatarUrl(data.avatar_url);
+          }
+        } catch (error) {
+          console.error("Error fetching user profile:", error);
+        }
+      }
+    };
+
+    fetchUserProfile();
+
     // Initial fetch of unread notifications
     const fetchUnreadCount = async () => {
-      const { count } = await supabase
-        .from("notifications")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("is_read", false);
+      try {
+        const { count } = await supabase
+          .from("notifications")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("is_read", false);
 
-      setUnreadCount(count || 0);
+        setUnreadCount(count || 0);
+      } catch (error) {
+        console.error("Error fetching unread count:", error);
+        setUnreadCount(0);
+      }
     };
 
     fetchUnreadCount();
@@ -60,8 +102,17 @@ const HeaderInner = ({
       )
       .subscribe();
 
+    // Set up an event listener for when notifications are read
+    const handleNotificationsRead = () => {
+      console.log("Notifications read event received");
+      fetchUnreadCount();
+    };
+
+    window.addEventListener("notificationsRead", handleNotificationsRead);
+
     return () => {
       supabase.removeChannel(channel);
+      window.removeEventListener("notificationsRead", handleNotificationsRead);
     };
   }, [user]);
 
@@ -79,8 +130,8 @@ const HeaderInner = ({
         <h1 className="text-xl font-semibold">CryOutNow</h1>
       </div>
 
-      <div className="flex-1 max-w-xl mx-4">
-        <div className="relative">
+      <div className="hidden md:flex flex-1 max-w-xl mx-4">
+        <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             className="w-full pl-10"
@@ -94,14 +145,14 @@ const HeaderInner = ({
         <ThemeToggle />
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="relative">
               {unreadCount > 0 ? (
-                <div className="relative">
+                <>
                   <BellDot className="h-5 w-5" />
                   <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs rounded-full h-4 w-4 flex items-center justify-center">
                     {unreadCount}
                   </span>
-                </div>
+                </>
               ) : (
                 <Bell className="h-5 w-5" />
               )}
@@ -115,22 +166,39 @@ const HeaderInner = ({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="gap-2">
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                {userName.charAt(0)}
-              </div>
+              <Avatar className="h-8 w-8">
+                {profileAvatarUrl ? (
+                  <AvatarImage src={profileAvatarUrl} alt={userName} />
+                ) : null}
+                <AvatarFallback className="bg-primary/10">
+                  {userName.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
               <span className="hidden sm:inline">{userName}</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem
+              onClick={() => navigate("/profile")}
+              className="cursor-pointer"
+            >
+              <User className="mr-2 h-4 w-4" />
+              <span>Profile</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Settings</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               onSelect={async () => {
                 await signOut();
-                window.location.href = "/";
+                navigate("/");
               }}
+              className="text-red-600"
             >
-              Sign out
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Sign out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
