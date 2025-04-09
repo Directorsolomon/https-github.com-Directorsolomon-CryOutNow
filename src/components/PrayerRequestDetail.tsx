@@ -1,8 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import CommentDialog from "./CommentDialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { HandHeart, ArrowLeft } from "lucide-react";
+import { HandHeart, ArrowLeft, Trash2, MoreVertical } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { getNoCacheImageUrl } from "@/lib/image-utils";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "./ui/use-toast";
@@ -28,6 +35,8 @@ interface PrayerRequestDetailProps {
   onPrayClick: () => void;
   hasPrayed: boolean;
   onCommentAdded?: () => void;
+  onDeleteClick?: (id: string) => void;
+  isOwner?: boolean;
   imageUrl?: string | null;
   avatarUrl?: string | null;
 }
@@ -42,9 +51,14 @@ export default function PrayerRequestDetail({
   onBack,
   onPrayClick,
   hasPrayed,
+  onDeleteClick,
+  isOwner = false,
   imageUrl,
   avatarUrl,
 }: PrayerRequestDetailProps) {
+  // Use useMemo to create cache-busting image URLs
+  const cachedImageUrl = useMemo(() => getNoCacheImageUrl(imageUrl), [imageUrl]);
+  const cachedAvatarUrl = useMemo(() => getNoCacheImageUrl(avatarUrl), [avatarUrl]);
   const [isCommentDialogOpen, setIsCommentDialogOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
@@ -123,22 +137,47 @@ export default function PrayerRequestDetail({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={onBack}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h2 className="text-xl font-semibold">Prayer Request</h2>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={onBack}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h2 className="text-xl font-semibold">Prayer Request</h2>
+        </div>
+
+        {isOwner && onDeleteClick && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreVertical className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => {
+                  onDeleteClick(requestId);
+                  onBack(); // Go back after deleting
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       {/* Prayer Request */}
       <div className="space-y-4">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
-            {avatarUrl ? (
+            {cachedAvatarUrl ? (
               <img
-                src={avatarUrl}
+                src={cachedAvatarUrl}
                 alt={username}
                 className="h-full w-full object-cover"
+                key={cachedAvatarUrl} // Add key to force re-render when URL changes
               />
             ) : (
               username.charAt(0)
@@ -154,12 +193,13 @@ export default function PrayerRequestDetail({
 
         <p className="text-muted-foreground">{content}</p>
 
-        {imageUrl && (
+        {cachedImageUrl && (
           <div className="mt-3 rounded-md overflow-hidden">
             <img
-              src={imageUrl}
+              src={cachedImageUrl}
               alt="Attached image"
               className="w-full max-h-80 object-cover rounded-md"
+              key={cachedImageUrl} // Add key to force re-render when URL changes
             />
           </div>
         )}

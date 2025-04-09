@@ -7,6 +7,7 @@ import AuthForm from "./components/auth/AuthForm";
 import { AuthProvider, useAuth } from "./lib/auth";
 import routes from "tempo-routes";
 import { Toaster } from "./components/ui/toaster";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
@@ -62,12 +63,14 @@ function AppRoutes() {
 
 function App() {
   return (
-    <AuthProvider>
-      <div className="min-h-screen bg-background">
-        <AppRoutes />
-        <Toaster />
-      </div>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <div className="min-h-screen bg-background">
+          <AppRoutes />
+          <Toaster />
+        </div>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

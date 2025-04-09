@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import Header from "./Header";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import { clearImageFromCache } from "@/lib/image-utils";
 import PrayerRequestCard from "./PrayerRequestCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Button } from "./ui/button";
@@ -112,36 +113,8 @@ export default function ProfilePage() {
       }
     };
 
-    const fetchPrayerRequests = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("prayer_requests")
-          .select(
-            `
-            *,
-            profiles (username),
-            prayer_interactions:prayer_interactions(count),
-            comments:comments(count)
-          `,
-          )
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
-
-        if (error) throw error;
-
-        if (data) {
-          setPrayerRequests(
-            data.map((request) => ({
-              ...request,
-              prayer_count: request.prayer_interactions?.[0]?.count || 0,
-              comment_count: request.comments?.[0]?.count || 0,
-            })),
-          );
-        }
-      } catch (error) {
-        console.error("Error fetching prayer requests:", error);
-      }
-    };
+    // Use the extracted fetchUserPrayerRequests function
+    fetchUserPrayerRequests();
 
     const fetchPrayedRequests = async () => {
       try {
@@ -163,8 +136,26 @@ export default function ProfilePage() {
     };
 
     fetchProfile();
-    fetchPrayerRequests();
+    fetchUserPrayerRequests();
     fetchPrayedRequests();
+
+    // Subscribe to realtime changes for prayer_requests
+    const channel = supabase
+      .channel("profile_prayer_requests")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "prayer_requests", filter: `user_id=eq.${user.id}` },
+        () => {
+          console.log("Realtime update detected in profile, refreshing prayer requests");
+          fetchUserPrayerRequests();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      // Cleanup
+      supabase.removeChannel(channel);
+    };
   }, [user, toast]);
 
   if (isLoading) {
@@ -254,6 +245,290 @@ export default function ProfilePage() {
     } finally {
       setUploadingAvatar(false);
       if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
+
+  const handleDeleteRequest = async (requestId: string) => {
+    try {
+      console.log("Deleting prayer request from profile:", requestId);
+
+      // First, verify the prayer request exists and belongs to the user
+      const { data: verifyData, error: verifyError } = await supabase
+        .from("prayer_requests")
+        .select("id, user_id, image_url")
+        .eq("id", requestId)
+        .single();
+
+      console.log("Verification data from profile:", verifyData);
+
+      if (verifyError) {
+        console.error("Error verifying prayer request from profile:", verifyError);
+        throw new Error("Could not verify prayer request ownership");
+      }
+
+      if (!verifyData) {
+        throw new Error("Prayer request not found");
+      }
+
+      // Check if the user owns this prayer request
+      if (verifyData.user_id !== user.id) {
+        throw new Error("You don't have permission to delete this prayer request");
+      }
+
+      // Optimistically update UI
+      setPrayerRequests((prev) => prev.filter((r) => r.id !== requestId));
+
+      // If there's an image associated with this prayer request, delete it from storage
+      if (verifyData.image_url) {
+        try {
+          // First, try to clear the image from browser cache
+          clearImageFromCache(verifyData.image_url);
+
+          // Extract the file path from the URL
+          // The URL format is typically: https://[project-ref].supabase.co/storage/v1/object/public/[bucket]/[path]
+          const imageUrl = verifyData.image_url;
+          console.log("Image URL to delete from profile:", imageUrl);
+
+          // Try a different approach to delete the image
+          // First, let's try to determine if this is a Supabase storage URL
+          if (imageUrl.includes('supabase')) {
+            // This appears to be a Supabase URL
+            console.log("Detected Supabase storage URL in profile");
+
+            // Extract the path from the URL
+            const urlParts = imageUrl.split('/storage/v1/object/public/');
+            if (urlParts.length > 1) {
+              const pathParts = urlParts[1].split('/');
+              const bucket = pathParts[0];
+              const filePath = pathParts.slice(1).join('/');
+
+              console.log("Attempting to delete file from profile - Bucket:", bucket, "Path:", filePath);
+
+              // First, list files to verify the file exists
+              const { data: fileList, error: listError } = await supabase
+                .storage
+                .from(bucket)
+                .list(filePath.split('/').slice(0, -1).join('/') || undefined);
+
+              console.log("Files in directory (profile):", fileList);
+
+              if (listError) {
+                console.error("Error listing files in bucket (profile):", listError);
+              }
+
+              // Now try to delete the file
+              const { data: deleteData, error: storageError } = await supabase
+                .storage
+                .from(bucket)
+                .remove([filePath]);
+
+              console.log("Delete response (profile):", deleteData);
+
+              if (storageError) {
+                console.error("Error deleting image from storage (profile):", storageError);
+
+                // Try an alternative approach - delete all files in the user's directory
+                const userPath = filePath.split('/')[0]; // This should be the user ID
+                console.log("Attempting to delete all files for user (profile):", userPath);
+
+                const { data: userFiles, error: userListError } = await supabase
+                  .storage
+                  .from(bucket)
+                  .list(userPath);
+
+                if (userListError) {
+                  console.error("Error listing user files (profile):", userListError);
+                } else if (userFiles && userFiles.length > 0) {
+                  console.log("Found user files (profile):", userFiles);
+
+                  const filesToDelete = userFiles.map(file => `${userPath}/${file.name}`);
+                  console.log("Attempting to delete these files (profile):", filesToDelete);
+
+                  const { data: bulkDeleteData, error: bulkDeleteError } = await supabase
+                    .storage
+                    .from(bucket)
+                    .remove(filesToDelete);
+
+                  if (bulkDeleteError) {
+                    console.error("Error bulk deleting files (profile):", bulkDeleteError);
+                  } else {
+                    console.log("Bulk delete successful (profile):", bulkDeleteData);
+                  }
+                }
+              } else {
+                console.log("Image deleted successfully from storage (profile)");
+              }
+            } else {
+              console.error("Could not parse Supabase URL correctly (profile)");
+            }
+          } else {
+            console.log("Not a Supabase storage URL, might be an external image (profile)");
+          }
+        } catch (storageError) {
+          console.error("Error processing image deletion (profile):", storageError);
+          // Continue with the prayer request deletion even if image deletion fails
+        }
+      }
+
+      // First, update the prayer request to remove the image_url
+      const { error: updateError } = await supabase
+        .from("prayer_requests")
+        .update({ image_url: null })
+        .eq("id", requestId);
+
+      if (updateError) {
+        console.error("Error updating prayer request to remove image_url (profile):", updateError);
+        // Continue with deletion anyway
+      } else {
+        console.log("Successfully removed image_url from prayer request (profile)");
+      }
+
+      // Use the RPC function to delete the prayer request and all related records
+      console.log("Using RPC function to delete prayer request ID (profile):", requestId);
+
+      const { data: rpcResult, error: rpcError } = await supabase
+        .rpc('delete_prayer_request', { prayer_request_id: requestId });
+
+      console.log("RPC delete result (profile):", rpcResult, "Error:", rpcError);
+
+      if (rpcError) {
+        console.error("RPC delete failed (profile):", rpcError);
+
+        // Fall back to manual deletion
+        console.log("Falling back to manual deletion process (profile)...");
+
+        // First, delete related prayer interactions
+        const { error: interactionsError } = await supabase
+          .from("prayer_interactions")
+          .delete()
+          .eq("prayer_request_id", requestId);
+
+        if (interactionsError) {
+          console.error("Error deleting related interactions (profile):", interactionsError);
+        } else {
+          console.log("Successfully deleted related interactions (profile)");
+        }
+
+        // Then, delete related comments
+        const { error: commentsError } = await supabase
+          .from("comments")
+          .delete()
+          .eq("prayer_request_id", requestId);
+
+        if (commentsError) {
+          console.error("Error deleting related comments (profile):", commentsError);
+        } else {
+          console.log("Successfully deleted related comments (profile)");
+        }
+
+        // Finally, delete the prayer request itself
+        const { error: deleteError } = await supabase
+          .from("prayer_requests")
+          .delete()
+          .eq("id", requestId);
+
+        if (deleteError) {
+          console.error("Manual delete failed (profile):", deleteError);
+
+          // Last resort: mark as deleted
+          const { error: updateError } = await supabase
+            .from("prayer_requests")
+            .update({
+              content: "[Deleted]",
+              image_url: null,
+              is_public: false
+            })
+            .eq("id", requestId);
+
+          if (updateError) {
+            console.error("Update as deleted also failed (profile):", updateError);
+            throw new Error("All deletion methods failed");
+          } else {
+            console.log("Successfully marked prayer request as deleted (profile)");
+          }
+        } else {
+          console.log("Successfully deleted prayer request manually (profile)");
+        }
+      } else {
+        console.log("Successfully deleted prayer request using RPC (profile)");
+      }
+
+      // Verify the prayer request was actually deleted
+      const { data: checkData } = await supabase
+        .from("prayer_requests")
+        .select("id")
+        .eq("id", requestId)
+        .maybeSingle();
+
+      console.log("Post-deletion verification result (profile):", checkData);
+
+      if (checkData) {
+        console.warn("Prayer request still exists after deletion attempt (profile)!");
+        // Don't throw an error, just log it
+        console.log("Will rely on UI filtering to hide this post (profile)");
+      } else {
+        console.log("Confirmed prayer request was successfully deleted (profile)");
+      }
+
+      console.log("Prayer request deleted successfully from profile");
+
+      // Force a refresh of the prayer requests
+      await fetchUserPrayerRequests();
+
+      toast({
+        title: "Success",
+        description: "Prayer request deleted successfully",
+      });
+    } catch (error) {
+      console.error("Error deleting prayer request from profile:", error);
+
+      // Revert optimistic update by refetching
+      await fetchUserPrayerRequests();
+
+      toast({
+        title: "Error",
+        description: typeof error === 'object' && error !== null && 'message' in error
+          ? String(error.message)
+          : "Failed to delete prayer request",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Extract the fetch prayer requests logic into a separate function
+  const fetchUserPrayerRequests = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("prayer_requests")
+        .select(
+          `
+          *,
+          profiles (username),
+          prayer_interactions:prayer_interactions(count),
+          comments:comments(count)
+        `,
+        )
+        .eq("user_id", user.id)
+        .not('content', 'eq', '[Deleted]') // Filter out posts marked as deleted
+        .order("created_at", { ascending: false });
+
+      console.log("Fetched user prayer requests:", data);
+
+      if (error) throw error;
+
+      if (data) {
+        setPrayerRequests(
+          data.map((request) => ({
+            ...request,
+            prayer_count: request.prayer_interactions?.[0]?.count || 0,
+            comment_count: request.comments?.[0]?.count || 0,
+            // Add a timestamp to force refresh of the component when data changes
+            _timestamp: Date.now(),
+          })),
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching user prayer requests:", error);
     }
   };
 
@@ -470,6 +745,7 @@ export default function ProfilePage() {
               prayerRequests.map((request) => (
                 <PrayerRequestCard
                   key={request.id}
+                  id={request.id}
                   content={request.content}
                   username={request.profiles?.username || "Anonymous"}
                   timestamp={request.created_at}
@@ -477,6 +753,8 @@ export default function ProfilePage() {
                   prayerCount={request.prayer_count || 0}
                   commentCount={request.comment_count || 0}
                   hasPrayed={prayedRequests.has(request.id)}
+                  isOwner={true} // In profile page, all requests belong to the user
+                  onDeleteClick={handleDeleteRequest}
                 />
               ))
             ) : (

@@ -5,8 +5,9 @@ import { tempo } from "tempo-devtools/dist/vite";
 
 const conditionalPlugins: [string, Record<string, any>][] = [];
 
-// @ts-ignore
-if (process.env.TEMPO === "true") {
+// Check if TEMPO feature is enabled
+const isTempoEnabled = process.env.VITE_TEMPO === "true";
+if (isTempoEnabled) {
   conditionalPlugins.push(["tempo-devtools/swc", {}]);
 }
 
