@@ -51,6 +51,7 @@ export default function PrayerRequestDetail({
   onBack,
   onPrayClick,
   hasPrayed,
+  onCommentAdded,
   onDeleteClick,
   isOwner = false,
   imageUrl,
@@ -66,69 +67,156 @@ export default function PrayerRequestDetail({
   const { toast } = useToast();
 
   const fetchComments = async () => {
-    const { data, error } = await supabase
-      .from("comments")
-      .select(
-        `
-        *,
-        profiles!comments_profile_id_fkey (username, avatar_url)
-      `,
-      )
-      .eq("prayer_request_id", requestId)
-      .order("created_at", { ascending: true });
+    try {
+      console.log("Fetching comments for request:", requestId);
+      const { data, error } = await supabase
+        .from("comments")
+        .select(
+          `
+          *,
+          profiles!comments_profile_id_fkey (username, avatar_url)
+        `,
+        )
+        .eq("prayer_request_id", requestId)
+        .order("created_at", { ascending: false }); // Newest comments first
 
-    if (error) {
-      console.error("Error fetching comments:", error);
-      return;
+      if (error) {
+        console.error("Error fetching comments:", error);
+        return;
+      }
+
+      console.log("Fetched comments:", data);
+      setComments(data || []);
+    } catch (err) {
+      console.error("Exception when fetching comments:", err);
     }
-
-    setComments(data || []);
   };
 
   useEffect(() => {
     fetchComments();
 
-    // Subscribe to new comments
+    // Subscribe to new comments - but only for inserts and updates
     const channel = supabase
       .channel(`comments-${requestId}`)
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
           schema: "public",
           table: "comments",
           filter: `prayer_request_id=eq.${requestId}`,
         },
-        () => fetchComments(),
+        (payload) => {
+          console.log("New comment inserted:", payload);
+          // Instead of refetching all comments, we can just add the new one
+          // This is more efficient and prevents UI flicker
+          if (payload.new) {
+            // Fetch the user info for this comment
+            supabase
+              .from("profiles")
+              .select("username, avatar_url")
+              .eq("id", payload.new.profile_id)
+              .single()
+              .then(({ data: profile }) => {
+                if (profile) {
+                  const newComment = {
+                    ...payload.new,
+                    profiles: profile
+                  };
+                  setComments(prev => [newComment, ...prev]);
+                } else {
+                  // Fallback to fetching all comments if we can't get the profile
+                  fetchComments();
+                }
+              })
+              .catch(() => {
+                // Fallback to fetching all comments if there's an error
+                fetchComments();
+              });
+          } else {
+            // Fallback to fetching all comments if payload.new is missing
+            fetchComments();
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "comments",
+          filter: `prayer_request_id=eq.${requestId}`,
+        },
+        (payload) => {
+          console.log("Comment updated:", payload);
+          fetchComments();
+        },
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [requestId]);
+  }, [requestId, fetchComments]);
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
+    // Don't submit empty comments
+    if (!newComment.trim()) {
+      toast({
+        title: "Error",
+        description: "Comment cannot be empty",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      const { error } = await supabase.from("comments").insert({
+      console.log("Submitting comment:", {
         prayer_request_id: requestId,
         content: newComment,
         user_id: user.id,
         profile_id: user.id,
       });
 
-      if (error) throw error;
+      const { data, error } = await supabase.from("comments").insert({
+        prayer_request_id: requestId,
+        content: newComment,
+        user_id: user.id,
+        profile_id: user.id,
+      }).select();
+
+      if (error) {
+        console.error("Error posting comment:", error);
+        throw error;
+      }
+
+      console.log("Comment posted successfully:", data);
 
       // Notify parent component to update comment count
-      onCommentAdded?.();
+      if (typeof onCommentAdded === 'function') {
+        console.log('Calling onCommentAdded callback');
+        onCommentAdded();
+      } else {
+        console.log('onCommentAdded callback not provided or not a function');
+      }
+
       setNewComment("");
+
+      // Show success message
+      toast({
+        title: "Success",
+        description: "Comment posted successfully",
+      });
     } catch (error) {
+      console.error("Exception when posting comment:", error);
       toast({
         title: "Error",
-        description: "Failed to post comment",
+        description: typeof error === 'object' && error !== null && 'message' in error
+          ? String(error.message)
+          : "Failed to post comment",
         variant: "destructive",
       });
     }
