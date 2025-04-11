@@ -34,8 +34,9 @@ class ImageCache {
 
   /**
    * Preload an image and store it in the preloaded images cache
+   * Uses a timeout to prevent hanging on slow connections
    * @param url The image URL to preload
-   * @returns A promise that resolves when the image is loaded
+   * @returns A promise that resolves when the image is loaded or times out
    */
   preloadImage(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -45,15 +46,27 @@ class ImageCache {
         return;
       }
 
+      // Set a timeout to prevent hanging on slow connections
+      const timeoutId = setTimeout(() => {
+        console.warn(`Image preload timed out for: ${url}`);
+        resolve(); // Resolve anyway to prevent blocking
+      }, 3000); // 3 second timeout
+
       const img = new Image();
       img.onload = () => {
+        clearTimeout(timeoutId);
         this.preloadedImages.set(url, img);
         resolve();
       };
       img.onerror = () => {
-        reject(new Error(`Failed to preload image: ${url}`));
+        clearTimeout(timeoutId);
+        console.error(`Failed to preload image: ${url}`);
+        resolve(); // Resolve anyway to prevent blocking
       };
-      img.src = url;
+
+      // Add cache-busting parameter to prevent caching issues
+      const cacheBuster = `?t=${Date.now()}`;
+      img.src = url.includes('?') ? `${url}&_cb=${Date.now()}` : `${url}${cacheBuster}`;
     });
   }
 

@@ -185,18 +185,11 @@ export default function PrayerRequestDetail({
     }
 
     try {
-      // First ensure the user profile exists
-      console.log("Ensuring user profile exists before submitting comment");
-      const profileExists = await ensureUserProfileExists(user);
-
-      if (!profileExists) {
-        toast({
-          title: "Error",
-          description: "Could not verify your profile. Please try again or refresh the page.",
-          variant: "destructive",
-        });
-        return;
-      }
+      // Start profile creation in the background but don't wait for it
+      // This makes the comment submission faster
+      console.log("Starting profile creation in background");
+      ensureUserProfileExists(user)
+        .catch(err => console.error("Error ensuring profile exists:", err));
 
       console.log("Submitting comment:", {
         prayer_request_id: requestId,

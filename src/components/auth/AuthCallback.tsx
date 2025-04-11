@@ -52,23 +52,22 @@ export default function AuthCallback() {
         }
 
         if (session) {
-          console.log("Successfully authenticated, ensuring profile exists");
-
-          // Ensure user profile exists in the database
-          const profileCreated = await ensureUserProfileExists(session.user);
-
-          if (!profileCreated) {
-            console.warn("Failed to create user profile, but continuing with authentication");
-            toast({
-              title: "Profile Warning",
-              description: "Your profile may be incomplete. Some features might not work correctly.",
-              variant: "warning",
-            });
-          }
+          console.log("Successfully authenticated, redirecting to home");
 
           // Clear the hash from URL
           window.history.replaceState(null, "", window.location.pathname);
-          // Redirect to home
+
+          // Start profile creation in the background without waiting
+          // This allows the redirect to happen immediately
+          ensureUserProfileExists(session.user)
+            .then(profileCreated => {
+              if (!profileCreated) {
+                console.warn("Failed to create user profile in the background");
+              }
+            })
+            .catch(err => console.error("Error creating profile in background:", err));
+
+          // Redirect to home immediately without waiting for profile creation
           navigate("/home");
         } else {
           setError("No session created");

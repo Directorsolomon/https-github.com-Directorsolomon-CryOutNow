@@ -19,36 +19,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
 
-  // Function to preload user avatar
-  const preloadUserAvatar = async (userId: string) => {
-    try {
-      // Check if we already have the avatar URL in cache
-      if (imageCache.has(userId)) {
-        console.log('Avatar URL found in cache, preloading image...');
-        await imageCache.preloadImage(imageCache.get(userId)!);
-        return;
-      }
+  // Function to preload user avatar - non-blocking version
+  const preloadUserAvatar = (userId: string) => {
+    // Use a non-blocking approach with Promise
+    const preloadPromise = new Promise<void>(async (resolve) => {
+      try {
+        // Check if we already have the avatar URL in cache
+        if (imageCache.has(userId)) {
+          console.log('Avatar URL found in cache, preloading image...');
+          // Don't await here - let it happen in background
+          imageCache.preloadImage(imageCache.get(userId)!)
+            .catch(err => console.error('Error preloading cached avatar:', err));
+          resolve();
+          return;
+        }
 
-      console.log('Fetching user profile to preload avatar...');
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("avatar_url")
-        .eq("id", userId)
-        .single();
+        // Try to get avatar URL directly from user metadata first if available
+        // This is much faster than a database query
+        if (user?.user_metadata?.avatar_url || user?.user_metadata?.picture) {
+          const avatarUrl = user.user_metadata.avatar_url || user.user_metadata.picture;
+          console.log('Avatar URL found in user metadata, using it directly');
+          imageCache.set(userId, avatarUrl);
+          imageCache.preloadImage(avatarUrl)
+            .catch(err => console.error('Error preloading avatar from metadata:', err));
+          resolve();
+          return;
+        }
 
-      if (error) {
-        console.error('Error fetching user profile for avatar preloading:', error);
-        return;
-      }
+        // As a last resort, fetch from database
+        console.log('Fetching user profile to preload avatar...');
+        supabase
+          .from("profiles")
+          .select("avatar_url")
+          .eq("id", userId)
+          .single()
+          .then(({ data, error }) => {
+            if (error) {
+              console.error('Error fetching user profile for avatar preloading:', error);
+              resolve();
+              return;
+            }
 
-      if (data && data.avatar_url) {
-        console.log('Avatar URL found, caching and preloading image...');
-        imageCache.set(userId, data.avatar_url);
-        await imageCache.preloadImage(data.avatar_url);
+            if (data && data.avatar_url) {
+              console.log('Avatar URL found in database, caching and preloading...');
+              imageCache.set(userId, data.avatar_url);
+              imageCache.preloadImage(data.avatar_url)
+                .catch(err => console.error('Error preloading avatar from database:', err));
+            }
+            resolve();
+          })
+          .catch(error => {
+            console.error('Error in avatar preload database query:', error);
+            resolve();
+          });
+      } catch (error) {
+        console.error('Error in preloadUserAvatar:', error);
+        resolve(); // Always resolve to prevent blocking
       }
-    } catch (error) {
-      console.error('Error preloading user avatar:', error);
-    }
+    });
+
+    // Return immediately, don't wait for the promise
+    return preloadPromise;
   };
 
   useEffect(() => {
@@ -60,14 +91,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
 
-      // If we have a session, ensure profile exists and preload avatar
+      // If we have a session, preload avatar and ensure profile exists in background
       if (session?.user) {
-        // Ensure user profile exists
-        console.log('Initial auth check, ensuring profile exists');
-        await ensureUserProfileExists(session.user);
-
-        // Preload user avatar
+        // Preload user avatar immediately
         preloadUserAvatar(session.user.id);
+
+        // Ensure user profile exists in the background
+        // This won't block the UI
+        setTimeout(() => {
+          ensureUserProfileExists(session.user)
+            .catch(err => console.error('Error ensuring profile exists:', err));
+        }, 100);
       }
 
       // If we have a session but are on the landing page, redirect to home
@@ -86,16 +120,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
 
-      // If user is signed in, ensure they have a profile
+      // If user is signed in, handle profile and avatar
       if (session?.user) {
-        // For sign-in events, ensure profile exists
-        if (event === 'SIGNED_IN') {
-          console.log('User signed in, ensuring profile exists');
-          await ensureUserProfileExists(session.user);
-        }
-
-        // Preload user avatar when auth state changes
+        // Preload user avatar immediately when auth state changes
         preloadUserAvatar(session.user.id);
+
+        // For sign-in events, ensure profile exists in the background
+        if (event === 'SIGNED_IN') {
+          console.log('User signed in, ensuring profile exists in background');
+          // Use setTimeout to make this non-blocking
+          setTimeout(() => {
+            ensureUserProfileExists(session.user)
+              .catch(err => console.error('Error ensuring profile exists:', err));
+          }, 0);
+        }
       }
     });
 
@@ -130,10 +168,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
+    // Use scopes to request minimal permissions for faster auth
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
+        scopes: 'email profile', // Request only what we need
+        queryParams: {
+          prompt: 'select_account', // Allow users to select account each time
+          access_type: 'online' // Don't request offline access which is slower
+        }
       },
     });
     if (error) throw error;
