@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
+import { ensureUserProfileExists } from "@/lib/profile-utils";
 
 export default function AuthCallback() {
   const [error, setError] = useState<string | null>(null);
@@ -13,11 +14,11 @@ export default function AuthCallback() {
     const handleAuthCallback = async () => {
       try {
         setIsProcessing(true);
-        
+
         // Check for access token in URL
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = hashParams.get("access_token");
-        
+
         if (!accessToken) {
           setError("No access token found in URL");
           toast({
@@ -27,9 +28,9 @@ export default function AuthCallback() {
           });
           return;
         }
-        
+
         console.log("Processing authentication callback with access token");
-        
+
         // Set the session using the access token
         const {
           data: { session },
@@ -38,7 +39,7 @@ export default function AuthCallback() {
           access_token: accessToken,
           refresh_token: hashParams.get("refresh_token") || "",
         });
-        
+
         if (sessionError) {
           console.error("Error setting session:", sessionError);
           setError(sessionError.message);
@@ -49,9 +50,22 @@ export default function AuthCallback() {
           });
           return;
         }
-        
+
         if (session) {
-          console.log("Successfully authenticated, redirecting to home");
+          console.log("Successfully authenticated, ensuring profile exists");
+
+          // Ensure user profile exists in the database
+          const profileCreated = await ensureUserProfileExists(session.user);
+
+          if (!profileCreated) {
+            console.warn("Failed to create user profile, but continuing with authentication");
+            toast({
+              title: "Profile Warning",
+              description: "Your profile may be incomplete. Some features might not work correctly.",
+              variant: "warning",
+            });
+          }
+
           // Clear the hash from URL
           window.history.replaceState(null, "", window.location.pathname);
           // Redirect to home
@@ -76,17 +90,17 @@ export default function AuthCallback() {
         setIsProcessing(false);
       }
     };
-    
+
     handleAuthCallback();
   }, [navigate, toast]);
-  
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
       <div className="w-full max-w-md p-6 bg-white rounded-lg shadow-lg">
         <h1 className="text-2xl font-bold text-center mb-4">
           {isProcessing ? "Processing Authentication..." : error ? "Authentication Error" : "Authentication Successful"}
         </h1>
-        
+
         {isProcessing && (
           <div className="flex flex-col items-center justify-center space-y-4">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -95,7 +109,7 @@ export default function AuthCallback() {
             </p>
           </div>
         )}
-        
+
         {error && (
           <div className="text-center space-y-4">
             <p className="text-destructive">{error}</p>

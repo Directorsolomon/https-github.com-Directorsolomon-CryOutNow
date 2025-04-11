@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { imageCache } from "./image-cache";
+import { ensureUserProfileExists } from "./profile-utils";
 import { Session, User } from "@supabase/supabase-js";
 
 type AuthContextType = {
@@ -59,8 +60,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
 
-      // Preload user avatar if we have a session
+      // If we have a session, ensure profile exists and preload avatar
       if (session?.user) {
+        // Ensure user profile exists
+        console.log('Initial auth check, ensuring profile exists');
+        await ensureUserProfileExists(session.user);
+
+        // Preload user avatar
         preloadUserAvatar(session.user.id);
       }
 
@@ -75,12 +81,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log(`Auth state changed: ${event}`);
       setSession(session);
       setUser(session?.user ?? null);
 
-      // Preload user avatar when auth state changes
+      // If user is signed in, ensure they have a profile
       if (session?.user) {
+        // For sign-in events, ensure profile exists
+        if (event === 'SIGNED_IN') {
+          console.log('User signed in, ensuring profile exists');
+          await ensureUserProfileExists(session.user);
+        }
+
+        // Preload user avatar when auth state changes
         preloadUserAvatar(session.user.id);
       }
     });

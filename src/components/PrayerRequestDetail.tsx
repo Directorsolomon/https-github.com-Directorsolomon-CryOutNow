@@ -13,6 +13,7 @@ import { getNoCacheImageUrl } from "@/lib/image-utils";
 import OptimizedAvatar from "./OptimizedAvatar";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import { ensureUserProfileExists } from "@/lib/profile-utils";
 import { useToast } from "./ui/use-toast";
 
 interface Comment {
@@ -184,6 +185,19 @@ export default function PrayerRequestDetail({
     }
 
     try {
+      // First ensure the user profile exists
+      console.log("Ensuring user profile exists before submitting comment");
+      const profileExists = await ensureUserProfileExists(user);
+
+      if (!profileExists) {
+        toast({
+          title: "Error",
+          description: "Could not verify your profile. Please try again or refresh the page.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       console.log("Submitting comment:", {
         prayer_request_id: requestId,
         content: newComment,
