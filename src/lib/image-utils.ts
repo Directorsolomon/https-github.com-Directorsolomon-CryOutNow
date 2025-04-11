@@ -6,9 +6,17 @@
 export function getNoCacheImageUrl(url: string | null): string | null {
   if (!url) return null;
 
-  // Add a timestamp parameter to prevent caching
-  const separator = url.includes('?') ? '&' : '?';
-  return `${url}${separator}t=${Date.now()}`;
+  try {
+    // Make sure the URL is valid
+    new URL(url);
+
+    // Add a timestamp parameter to prevent caching
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}t=${Date.now()}`;
+  } catch (error) {
+    console.error('Invalid URL in getNoCacheImageUrl:', url, error);
+    return url; // Return the original URL if it's invalid
+  }
 }
 
 /**

@@ -44,8 +44,17 @@ const PrayerRequestCard = ({
   isOwner = false,
 }: PrayerRequestCardProps) => {
   // Use useMemo to create a cache-busting image URL
-  const cachedImageUrl = useMemo(() => getNoCacheImageUrl(imageUrl), [imageUrl]);
-  const cachedAvatarUrl = useMemo(() => getNoCacheImageUrl(avatarUrl), [avatarUrl]);
+  const cachedImageUrl = useMemo(() => {
+    const url = getNoCacheImageUrl(imageUrl);
+    console.log('Prayer request image URL:', { original: imageUrl, cached: url });
+    return url;
+  }, [imageUrl]);
+
+  const cachedAvatarUrl = useMemo(() => {
+    const url = getNoCacheImageUrl(avatarUrl);
+    console.log('Avatar image URL:', { original: avatarUrl, cached: url });
+    return url;
+  }, [avatarUrl]);
 
   return (
     <div className="space-y-3 bg-background p-4 rounded-lg border">
@@ -74,13 +83,22 @@ const PrayerRequestCard = ({
       {/* Content */}
       <div>
         <p className="text-muted-foreground mt-1">{content}</p>
-        {cachedImageUrl && (
+        {imageUrl && (
           <div className="mt-3 rounded-md overflow-hidden">
             <img
-              src={cachedImageUrl}
+              src={cachedImageUrl || imageUrl}
               alt="Attached image"
               className="w-full max-h-64 object-cover rounded-md"
-              key={cachedImageUrl} // Add key to force re-render when URL changes
+              key={cachedImageUrl || imageUrl} // Add key to force re-render when URL changes
+              onError={(e) => {
+                console.error('Image failed to load:', imageUrl);
+                // Try loading the original URL as fallback
+                if (cachedImageUrl && e.currentTarget.src !== imageUrl) {
+                  console.log('Trying original URL as fallback');
+                  e.currentTarget.src = imageUrl;
+                }
+              }}
+              onLoad={() => console.log('Image loaded successfully:', cachedImageUrl || imageUrl)}
             />
           </div>
         )}

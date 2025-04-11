@@ -85,8 +85,16 @@ const PrayerRequestFormInner = ({
         .from("prayer-images")
         .getPublicUrl(filePath);
 
+      console.log('Uploaded image public URL:', data.publicUrl);
+
       // Set the image URL in the form
       form.setValue("imageUrl", data.publicUrl);
+
+      // Verify the image is accessible
+      const img = new Image();
+      img.onload = () => console.log('Image verified as accessible:', data.publicUrl);
+      img.onerror = () => console.error('Image not accessible after upload:', data.publicUrl);
+      img.src = data.publicUrl;
 
       toast({
         title: "Success",

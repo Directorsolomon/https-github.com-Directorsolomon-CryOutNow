@@ -58,8 +58,17 @@ export default function PrayerRequestDetail({
   avatarUrl,
 }: PrayerRequestDetailProps) {
   // Use useMemo to create cache-busting image URLs
-  const cachedImageUrl = useMemo(() => getNoCacheImageUrl(imageUrl), [imageUrl]);
-  const cachedAvatarUrl = useMemo(() => getNoCacheImageUrl(avatarUrl), [avatarUrl]);
+  const cachedImageUrl = useMemo(() => {
+    const url = getNoCacheImageUrl(imageUrl);
+    console.log('PrayerRequestDetail - image URL:', { original: imageUrl, cached: url });
+    return url;
+  }, [imageUrl]);
+
+  const cachedAvatarUrl = useMemo(() => {
+    const url = getNoCacheImageUrl(avatarUrl);
+    console.log('PrayerRequestDetail - avatar URL:', { original: avatarUrl, cached: url });
+    return url;
+  }, [avatarUrl]);
   const [isCommentDialogOpen, setIsCommentDialogOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
@@ -281,13 +290,22 @@ export default function PrayerRequestDetail({
 
         <p className="text-muted-foreground">{content}</p>
 
-        {cachedImageUrl && (
+        {imageUrl && (
           <div className="mt-3 rounded-md overflow-hidden">
             <img
-              src={cachedImageUrl}
+              src={cachedImageUrl || imageUrl}
               alt="Attached image"
               className="w-full max-h-80 object-cover rounded-md"
-              key={cachedImageUrl} // Add key to force re-render when URL changes
+              key={cachedImageUrl || imageUrl} // Add key to force re-render when URL changes
+              onError={(e) => {
+                console.error('PrayerRequestDetail - Image failed to load:', imageUrl);
+                // Try loading the original URL as fallback
+                if (cachedImageUrl && e.currentTarget.src !== imageUrl) {
+                  console.log('PrayerRequestDetail - Trying original URL as fallback');
+                  e.currentTarget.src = imageUrl;
+                }
+              }}
+              onLoad={() => console.log('PrayerRequestDetail - Image loaded successfully:', cachedImageUrl || imageUrl)}
             />
           </div>
         )}
