@@ -4,6 +4,7 @@ import Home from "./components/home";
 import LandingPage from "./components/LandingPage";
 import ProfilePage from "./components/ProfilePage";
 import AuthForm from "./components/auth/AuthForm";
+import AuthCallback from "./components/auth/AuthCallback";
 import { AuthProvider, useAuth } from "./lib/auth";
 import routes from "tempo-routes";
 import { Toaster } from "./components/ui/toaster";
@@ -55,6 +56,7 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>

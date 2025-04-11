@@ -31,25 +31,42 @@ export default function AuthForm() {
       const accessToken = hashParams.get("access_token");
 
       if (accessToken) {
-        // Set the session using the access token
-        const {
-          data: { session: newSession },
-          error,
-        } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: hashParams.get("refresh_token") || "",
-        });
+        try {
+          console.log("Found access token in URL, attempting to set session");
 
-        if (error) {
-          console.error("Error setting session:", error);
-          return;
-        }
+          // Set the session using the access token
+          const {
+            data: { session: newSession },
+            error,
+          } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: hashParams.get("refresh_token") || "",
+          });
 
-        if (newSession) {
-          // Clear the hash from URL
-          window.history.replaceState(null, "", window.location.pathname);
-          // Redirect to home
-          navigate("/home");
+          if (error) {
+            console.error("Error setting session:", error);
+            toast({
+              title: "Authentication Error",
+              description: `Failed to authenticate: ${error.message}`,
+              variant: "destructive",
+            });
+            return;
+          }
+
+          if (newSession) {
+            console.log("Successfully set session, redirecting to home");
+            // Clear the hash from URL
+            window.history.replaceState(null, "", window.location.pathname);
+            // Redirect to home
+            navigate("/home");
+          }
+        } catch (error) {
+          console.error("Exception during authentication:", error);
+          toast({
+            title: "Authentication Error",
+            description: "An unexpected error occurred during authentication.",
+            variant: "destructive",
+          });
         }
       }
     };

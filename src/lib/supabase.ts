@@ -22,6 +22,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: true
+        detectSessionInUrl: true,
+        flowType: 'implicit'
     }
 });
+
+// Log when the client is initialized
+console.log("Supabase client initialized with detectSessionInUrl: true");
