@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#4F46E5"/>
+  <path d="M600 315C600 342.614 577.614 365 550 365C522.386 365 500 342.614 500 315C500 287.386 522.386 265 550 265C577.614 265 600 287.386 600 315Z" fill="white"/>
+  <path d="M700 315C700 342.614 677.614 365 650 365C622.386 365 600 342.614 600 315C600 287.386 622.386 265 650 265C677.614 265 700 287.386 700 315Z" fill="white"/>
+  <path d="M550 365C550 392.614 527.614 415 500 415C472.386 415 450 392.614 450 365C450 337.386 472.386 315 500 315C527.614 315 550 337.386 550 365Z" fill="white"/>
+  <path d="M750 365C750 392.614 727.614 415 700 415C672.386 415 650 392.614 650 365C650 337.386 672.386 315 700 315C727.614 315 750 337.386 750 365Z" fill="white"/>
+  <text x="600" y="500" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="white" text-anchor="middle">CryOutNow</text>
+  <text x="600" y="560" font-family="Arial, sans-serif" font-size="36" fill="white" text-anchor="middle">Share Your Prayer Requests</text>
+</svg>

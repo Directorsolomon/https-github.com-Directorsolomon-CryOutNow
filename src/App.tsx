@@ -9,6 +9,9 @@ import { AuthProvider, useAuth } from "./lib/auth";
 import routes from "tempo-routes";
 import { Toaster } from "./components/ui/toaster";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
+import { HelmetProvider } from "react-helmet-async";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
@@ -66,12 +69,16 @@ function AppRoutes() {
 function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <div className="min-h-screen bg-background">
-          <AppRoutes />
-          <Toaster />
-        </div>
-      </AuthProvider>
+      <HelmetProvider>
+        <AuthProvider>
+          <div className="min-h-screen bg-background">
+            <AppRoutes />
+            <Toaster />
+            <Analytics />
+            <SpeedInsights />
+          </div>
+        </AuthProvider>
+      </HelmetProvider>
     </ErrorBoundary>
   );
 }

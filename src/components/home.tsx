@@ -11,6 +11,7 @@ import { useAuth, AuthProvider } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "./ui/use-toast";
 import { clearImageFromCache } from "@/lib/image-utils";
+import SEO from "./SEO";
 
 interface HomeProps {
   showNewRequestDialog?: boolean;
@@ -486,6 +487,11 @@ const HomeInner = ({ showNewRequestDialog = false }: HomeProps) => {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title="Home | CryOutNow - Prayer Community"
+        description="View and interact with prayer requests from the community. Share your prayers and support others in their spiritual journey."
+        canonical="/home"
+      />
       <Header userName={username || "Guest"} />
 
       {/* Main Content */}

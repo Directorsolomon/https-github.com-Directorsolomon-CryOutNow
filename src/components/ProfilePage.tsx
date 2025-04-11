@@ -17,6 +17,7 @@ import {
 import { useToast } from "./ui/use-toast";
 import { useNavigate } from "react-router-dom";
 import PrayerRequestDetail from "./PrayerRequestDetail";
+import SEO from "./SEO";
 
 interface PrayerRequest {
   id: string;
@@ -701,6 +702,11 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO
+        title={`${profile.username || "User"}'s Profile | CryOutNow`}
+        description={`View ${profile.username || "User"}'s prayer requests and activity on CryOutNow. Connect and pray together in our supportive community.`}
+        canonical="/profile"
+      />
       <Header userName={profile.username || "Guest"} />
 
       <main className="pt-[72px] max-w-4xl mx-auto p-4 md:p-8">

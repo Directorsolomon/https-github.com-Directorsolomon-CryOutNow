@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Disallow authentication pages
+Disallow: /auth/callback
+
+# Sitemap
+Sitemap: https://cryoutnow.com/sitemap.xml

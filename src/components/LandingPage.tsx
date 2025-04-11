@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight, Heart, Users, LineChart, Sparkles } from "lucide-react";
 import { AuthProvider } from "@/lib/auth";
 import AuthForm from "./auth/AuthForm";
+import SEO from "./SEO";
+import { WebsiteStructuredData, OrganizationStructuredData } from "./StructuredData";
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -37,6 +39,22 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen bg-white overflow-hidden">
+      <SEO
+        title="CryOutNow - Share Your Prayer Requests"
+        description="Connect with a supportive community to share and receive prayers. CryOutNow helps you share your prayer requests and pray for others."
+        canonical="/"
+      />
+      <WebsiteStructuredData
+        url="https://cryoutnow.com"
+        name="CryOutNow"
+        description="A supportive community for sharing and receiving prayers"
+      />
+      <OrganizationStructuredData
+        url="https://cryoutnow.com"
+        name="CryOutNow"
+        logo="https://cryoutnow.com/logo.png"
+        description="CryOutNow is a platform where people can share their prayer requests and pray for others in a supportive community."
+      />
       {/* Gradient Orbs */}
       <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob" />
       <div className="absolute top-0 -right-4 w-72 h-72 bg-yellow-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000" />

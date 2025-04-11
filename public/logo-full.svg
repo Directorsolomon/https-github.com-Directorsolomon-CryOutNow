@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="1200" height="300" viewBox="0 0 1200 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Logo Symbol -->
+  <g transform="translate(50, 50) scale(0.8)">
+    <!-- Background -->
+    <rect width="250" height="250" rx="32" fill="#4F46E5"/>
+    
+    <!-- Praying Hands Symbol -->
+    <path d="M125 60C125 60 107 80 107 100C107 120 125 140 125 160C125 180 107 200 107 200" stroke="white" stroke-width="12" stroke-linecap="round"/>
+    <path d="M125 60C125 60 143 80 143 100C143 120 125 140 125 160C125 180 143 200 143 200" stroke="white" stroke-width="12" stroke-linecap="round"/>
+    
+    <!-- Heart Symbol -->
+    <path d="M125 200C125 200 165 170 165 150C165 135 155 125 140 125C132 125 125 130 125 130C125 130 118 125 110 125C95 125 85 135 85 150C85 170 125 200 125 200Z" fill="white"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="350" y="170" font-family="Arial, sans-serif" font-size="120" font-weight="bold" fill="#4F46E5">CryOutNow</text>
+</svg>
