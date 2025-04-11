@@ -3,7 +3,8 @@ import { Button } from "./ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import NotificationsPanel from "./NotificationsPanel";
 import { Input } from "./ui/input";
-import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
+import OptimizedAvatar from "./OptimizedAvatar";
+import { imageCache } from "@/lib/image-cache";
 import {
   Search,
   Bell,
@@ -33,8 +34,8 @@ interface HeaderProps {
 }
 
 const HeaderInner = ({
-  onMenuClick = () => {},
-  onSearchChange = () => {},
+  onMenuClick = () => { },
+  onSearchChange = () => { },
   userName = "Guest",
   avatarUrl = null,
 }: HeaderProps = {}) => {
@@ -52,14 +53,28 @@ const HeaderInner = ({
     const fetchUserProfile = async () => {
       if (avatarUrl === null) {
         try {
+          // First check if we have the avatar URL in cache
+          if (imageCache.has(user.id)) {
+            console.log('Using cached avatar URL from image cache');
+            setProfileAvatarUrl(imageCache.get(user.id));
+            return;
+          }
+
+          console.log('Fetching avatar URL from database');
           const { data, error } = await supabase
             .from("profiles")
             .select("avatar_url")
             .eq("id", user.id)
             .single();
 
-          if (!error && data) {
+          if (!error && data && data.avatar_url) {
+            console.log('Avatar URL fetched, setting and caching it');
             setProfileAvatarUrl(data.avatar_url);
+            imageCache.set(user.id, data.avatar_url);
+
+            // Preload the image
+            imageCache.preloadImage(data.avatar_url)
+              .catch(err => console.error('Error preloading avatar image:', err));
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);
@@ -166,14 +181,12 @@ const HeaderInner = ({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="gap-2">
-              <Avatar className="h-8 w-8">
-                {profileAvatarUrl ? (
-                  <AvatarImage src={profileAvatarUrl} alt={userName} />
-                ) : null}
-                <AvatarFallback className="bg-primary/10">
-                  {userName.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
+              <OptimizedAvatar
+                src={profileAvatarUrl}
+                alt={userName}
+                fallback={userName.charAt(0)}
+                size="sm"
+              />
               <span className="hidden sm:inline">{userName}</span>
             </Button>
           </DropdownMenuTrigger>

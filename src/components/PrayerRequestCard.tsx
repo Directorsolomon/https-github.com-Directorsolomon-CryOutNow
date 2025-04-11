@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { getNoCacheImageUrl } from "@/lib/image-utils";
+import OptimizedAvatar from "./OptimizedAvatar";
 
 interface PrayerRequestCardProps {
   id?: string;
@@ -60,18 +61,12 @@ const PrayerRequestCard = ({
     <div className="space-y-3 bg-background p-4 rounded-lg border">
       {/* User Info */}
       <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
-          {cachedAvatarUrl ? (
-            <img
-              src={cachedAvatarUrl}
-              alt={username}
-              className="h-full w-full object-cover"
-              key={cachedAvatarUrl} // Add key to force re-render when URL changes
-            />
-          ) : (
-            username.charAt(0)
-          )}
-        </div>
+        <OptimizedAvatar
+          src={avatarUrl}
+          alt={username}
+          fallback={username.charAt(0)}
+          size="md"
+        />
         <div>
           <p className="font-semibold">{username}</p>
           <p className="text-sm text-muted-foreground">

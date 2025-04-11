@@ -17,6 +17,8 @@ import {
 import { useToast } from "./ui/use-toast";
 import { useNavigate } from "react-router-dom";
 import PrayerRequestDetail from "./PrayerRequestDetail";
+import OptimizedAvatar from "./OptimizedAvatar";
+import { imageCache } from "@/lib/image-cache";
 import SEO from "./SEO";
 
 interface PrayerRequest {
@@ -130,20 +132,61 @@ export default function ProfilePage() {
     const fetchProfile = async () => {
       try {
         setIsLoading(true);
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
 
-        if (error) {
-          console.error("Error fetching profile:", error);
-          // Create profile if it doesn't exist
-          await createProfile();
-          return;
+        // Check if we have the avatar URL in cache
+        if (imageCache.has(user.id)) {
+          console.log('Profile page: Using cached avatar URL');
+          const cachedAvatarUrl = imageCache.get(user.id);
+
+          // Still fetch the full profile, but we can use the cached avatar URL immediately
+          const { data, error } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", user.id)
+            .single();
+
+          if (error) {
+            console.error("Error fetching profile:", error);
+            // Create profile if it doesn't exist
+            await createProfile();
+            return;
+          }
+
+          if (data) {
+            // Use the cached avatar URL if it exists
+            setProfile({
+              ...data,
+              avatar_url: data.avatar_url || cachedAvatarUrl
+            });
+          }
+        } else {
+          // No cached avatar URL, fetch the full profile
+          console.log('Profile page: Fetching full profile');
+          const { data, error } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", user.id)
+            .single();
+
+          if (error) {
+            console.error("Error fetching profile:", error);
+            // Create profile if it doesn't exist
+            await createProfile();
+            return;
+          }
+
+          if (data) {
+            setProfile(data);
+
+            // Cache the avatar URL if it exists
+            if (data.avatar_url) {
+              console.log('Profile page: Caching avatar URL');
+              imageCache.set(user.id, data.avatar_url);
+              imageCache.preloadImage(data.avatar_url)
+                .catch(err => console.error('Error preloading profile avatar image:', err));
+            }
+          }
         }
-
-        if (data) setProfile(data);
       } catch (error) {
         console.error("Error in profile fetch:", error);
       } finally {
@@ -279,6 +322,15 @@ export default function ProfilePage() {
       setProfile((prev) =>
         prev ? { ...prev, avatar_url: data.publicUrl } : null,
       );
+
+      // Update the image cache
+      console.log('Updating image cache with new avatar URL:', data.publicUrl);
+      imageCache.set(user!.id, data.publicUrl);
+
+      // Preload the image to ensure it's available immediately
+      imageCache.preloadImage(data.publicUrl)
+        .then(() => console.log('New avatar image preloaded successfully'))
+        .catch(err => console.error('Error preloading new avatar image:', err));
 
       toast({
         title: "Success",
@@ -782,20 +834,14 @@ export default function ProfilePage() {
           {/* Profile Info */}
           <div className="flex flex-col md:flex-row gap-6 items-start md:items-end -mt-16 px-4">
             <div className="relative">
-              <div className="w-32 h-32 rounded-full bg-primary/10 border-4 border-background flex items-center justify-center text-4xl overflow-hidden">
-                {profile.avatar_url && profile.avatar_url.trim() !== "" ? (
-                  <img
-                    src={profile.avatar_url}
-                    alt={profile.username || "User"}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.onerror = null;
-                      e.currentTarget.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username || profile.id}`;
-                    }}
-                  />
-                ) : (
-                  profile.username?.charAt(0) || "?"
-                )}
+              <div className="w-32 h-32 rounded-full border-4 border-background overflow-hidden flex items-center justify-center">
+                <OptimizedAvatar
+                  src={profile.avatar_url}
+                  alt={profile.username || "User"}
+                  fallback={profile.username?.charAt(0) || "?"}
+                  className="w-full h-full"
+                  size="lg"
+                />
               </div>
               <Button
                 size="icon"

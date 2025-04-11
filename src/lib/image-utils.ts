@@ -48,3 +48,28 @@ export function clearImageFromCache(url: string | null): void {
     console.error('Error clearing image from cache:', error);
   }
 }
+
+/**
+ * Preloads an image to improve loading performance
+ * @param url The image URL to preload
+ * @returns A promise that resolves when the image is loaded or rejects on error
+ */
+export function preloadImage(url: string | null): Promise<void> {
+  if (!url) return Promise.reject(new Error('No URL provided'));
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error(`Failed to preload image: ${url}`));
+    img.src = url;
+  });
+}
+
+/**
+ * Gets a fallback avatar URL using DiceBear API
+ * @param seed A seed string (usually username or user ID)
+ * @returns A URL to a generated avatar
+ */
+export function getFallbackAvatarUrl(seed: string): string {
+  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(seed)}`;
+}

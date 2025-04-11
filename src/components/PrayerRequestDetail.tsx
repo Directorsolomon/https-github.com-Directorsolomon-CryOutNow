@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { getNoCacheImageUrl } from "@/lib/image-utils";
+import OptimizedAvatar from "./OptimizedAvatar";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "./ui/use-toast";
@@ -268,18 +269,12 @@ export default function PrayerRequestDetail({
       {/* Prayer Request */}
       <div className="space-y-4">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
-            {cachedAvatarUrl ? (
-              <img
-                src={cachedAvatarUrl}
-                alt={username}
-                className="h-full w-full object-cover"
-                key={cachedAvatarUrl} // Add key to force re-render when URL changes
-              />
-            ) : (
-              username.charAt(0)
-            )}
-          </div>
+          <OptimizedAvatar
+            src={avatarUrl}
+            alt={username}
+            fallback={username.charAt(0)}
+            size="md"
+          />
           <div>
             <p className="font-semibold">{username}</p>
             <p className="text-sm text-muted-foreground">
@@ -329,17 +324,12 @@ export default function PrayerRequestDetail({
         <div className="space-y-4">
           {comments.map((comment) => (
             <div key={comment.id} className="flex gap-3">
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm overflow-hidden">
-                {comment.profiles.avatar_url ? (
-                  <img
-                    src={comment.profiles.avatar_url}
-                    alt={comment.profiles.username}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  comment.profiles.username.charAt(0)
-                )}
-              </div>
+              <OptimizedAvatar
+                src={comment.profiles.avatar_url}
+                alt={comment.profiles.username}
+                fallback={comment.profiles.username.charAt(0)}
+                size="sm"
+              />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-sm">

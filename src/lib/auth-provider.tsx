@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "./supabase";
+import { imageCache } from "./image-cache";
 import { Session, User } from "@supabase/supabase-js";
 
 type AuthContextType = {
@@ -17,6 +18,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
 
+  // Function to preload user avatar
+  const preloadUserAvatar = async (userId: string) => {
+    try {
+      // Check if we already have the avatar URL in cache
+      if (imageCache.has(userId)) {
+        console.log('Avatar URL found in cache, preloading image...');
+        await imageCache.preloadImage(imageCache.get(userId)!);
+        return;
+      }
+
+      console.log('Fetching user profile to preload avatar...');
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("avatar_url")
+        .eq("id", userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user profile for avatar preloading:', error);
+        return;
+      }
+
+      if (data && data.avatar_url) {
+        console.log('Avatar URL found, caching and preloading image...');
+        imageCache.set(userId, data.avatar_url);
+        await imageCache.preloadImage(data.avatar_url);
+      }
+    } catch (error) {
+      console.error('Error preloading user avatar:', error);
+    }
+  };
+
   useEffect(() => {
     // Get initial session
     const initializeAuth = async () => {
@@ -25,6 +58,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } = await supabase.auth.getSession();
       setSession(session);
       setUser(session?.user ?? null);
+
+      // Preload user avatar if we have a session
+      if (session?.user) {
+        preloadUserAvatar(session.user.id);
+      }
 
       // If we have a session but are on the landing page, redirect to home
       if (session && window.location.pathname === "/") {
@@ -37,9 +75,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+
+      // Preload user avatar when auth state changes
+      if (session?.user) {
+        preloadUserAvatar(session.user.id);
+      }
     });
 
     return () => subscription.unsubscribe();
