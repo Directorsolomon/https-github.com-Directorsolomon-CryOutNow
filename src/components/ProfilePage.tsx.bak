@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { useToast } from "./ui/use-toast";
 import { useNavigate } from "react-router-dom";
-import PrayerRequestDetail from "./PrayerRequestDetail";
 
 interface PrayerRequest {
   id: string;
@@ -24,14 +23,11 @@ interface PrayerRequest {
   created_at: string;
   user_id: string;
   is_public: boolean;
-  image_url?: string | null;
   profiles: {
     username: string;
-    avatar_url?: string | null;
   };
   prayer_count?: number;
   comment_count?: number;
-  _timestamp?: number; // For forcing re-renders
 }
 
 interface Profile {
@@ -51,35 +47,12 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<PrayerRequest | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   // References for file inputs
   const avatarInputRef = React.useRef<HTMLInputElement>(null);
   const coverInputRef = React.useRef<HTMLInputElement>(null);
-
-  // Function to fetch prayed requests
-  const fetchPrayedRequests = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("prayer_interactions")
-        .select("prayer_request_id")
-        .eq("user_id", user.id);
-
-      if (error) throw error;
-
-      if (data) {
-        setPrayedRequests(
-          new Set(data.map((item) => item.prayer_request_id)),
-        );
-      }
-    } catch (error) {
-      console.error("Error fetching prayed requests:", error);
-    }
-  };
 
   // Function to fetch user prayer requests
   const fetchUserPrayerRequests = async () => {
@@ -182,7 +155,28 @@ export default function ProfilePage() {
       }
     };
 
-    // Fetch data
+    // Fetch user prayer requests
+    fetchUserPrayerRequests();
+
+    const fetchPrayedRequests = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("prayer_interactions")
+          .select("prayer_request_id")
+          .eq("user_id", user.id);
+
+        if (error) throw error;
+
+        if (data) {
+          setPrayedRequests(
+            new Set(data.map((item) => item.prayer_request_id)),
+          );
+        }
+      } catch (error) {
+        console.error("Error fetching prayed requests:", error);
+      }
+    };
+
     fetchProfile();
     fetchUserPrayerRequests();
     fetchPrayedRequests();
@@ -293,98 +287,6 @@ export default function ProfilePage() {
     } finally {
       setUploadingAvatar(false);
       if (avatarInputRef.current) avatarInputRef.current.value = "";
-    }
-  };
-
-  // Handle prayer click (react to a prayer request)
-  const handlePrayerClick = async (request: PrayerRequest) => {
-    if (!user) return;
-
-    try {
-      const hasPrayed = prayedRequests.has(request.id);
-
-      // Optimistically update UI
-      const newPrayedRequests = new Set(prayedRequests);
-      if (hasPrayed) {
-        newPrayedRequests.delete(request.id);
-      } else {
-        newPrayedRequests.add(request.id);
-      }
-      setPrayedRequests(newPrayedRequests);
-
-      // Optimistically update prayer count
-      setPrayerRequests(prev =>
-        prev.map(r => {
-          if (r.id === request.id) {
-            return {
-              ...r,
-              prayer_count: (r.prayer_count || 0) + (hasPrayed ? -1 : 1)
-            };
-          }
-          return r;
-        })
-      );
-
-      if (hasPrayed) {
-        // Remove prayer interaction
-        const { error } = await supabase
-          .from("prayer_interactions")
-          .delete()
-          .eq("prayer_request_id", request.id)
-          .eq("user_id", user.id);
-
-        if (error) throw error;
-      } else {
-        // Add prayer interaction
-        const { error } = await supabase
-          .from("prayer_interactions")
-          .insert({
-            prayer_request_id: request.id,
-            user_id: user.id,
-          });
-
-        if (error) throw error;
-      }
-    } catch (error) {
-      console.error("Error toggling prayer:", error);
-
-      // Revert optimistic updates on error
-      await fetchUserPrayerRequests();
-      await fetchPrayedRequests();
-
-      toast({
-        title: "Error",
-        description: "Failed to update prayer status",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Handle comment added
-  const handleCommentAdded = () => {
-    // Update the comment count for the selected request
-    if (selectedRequest) {
-      setPrayerRequests(prev =>
-        prev.map(r => {
-          if (r.id === selectedRequest.id) {
-            return {
-              ...r,
-              comment_count: (r.comment_count || 0) + 1
-            };
-          }
-          return r;
-        })
-      );
-
-      // Update the selected request
-      setSelectedRequest(prev =>
-        prev
-          ? {
-            ...prev,
-            comment_count: (prev.comment_count || 0) + 1,
-          }
-          : null
-      );
     }
   };
 
@@ -858,11 +760,7 @@ export default function ProfilePage() {
                   prayerCount={request.prayer_count || 0}
                   commentCount={request.comment_count || 0}
                   hasPrayed={prayedRequests.has(request.id)}
-                  imageUrl={request.image_url}
-                  avatarUrl={request.profiles?.avatar_url}
                   isOwner={true} // In profile page, all requests belong to the user
-                  onPrayClick={() => handlePrayerClick(request)}
-                  onCommentClick={() => setSelectedRequest(request)}
                   onDeleteClick={handleDeleteRequest}
                 />
               ))
@@ -882,30 +780,6 @@ export default function ProfilePage() {
             </div>
           </TabsContent>
         </Tabs>
-
-        {/* Prayer Request Detail - Modal */}
-        {selectedRequest && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-card rounded-lg shadow-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-              <PrayerRequestDetail
-                requestId={selectedRequest.id}
-                content={selectedRequest.content}
-                username={selectedRequest.profiles?.username || "Anonymous"}
-                timestamp={selectedRequest.created_at}
-                prayerCount={selectedRequest.prayer_count || 0}
-                isPrivate={!selectedRequest.is_public}
-                onBack={() => setSelectedRequest(null)}
-                onPrayClick={() => handlePrayerClick(selectedRequest)}
-                hasPrayed={prayedRequests.has(selectedRequest.id)}
-                onCommentAdded={handleCommentAdded}
-                onDeleteClick={handleDeleteRequest}
-                isOwner={true}
-                imageUrl={selectedRequest.image_url}
-                avatarUrl={selectedRequest.profiles?.avatar_url}
-              />
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );
