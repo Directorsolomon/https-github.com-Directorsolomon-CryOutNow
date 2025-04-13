@@ -20,6 +20,9 @@ import PrayerRequestDetail from "./PrayerRequestDetail";
 import OptimizedAvatar from "./OptimizedAvatar";
 import { imageCache } from "@/lib/image-cache";
 import SEO from "./SEO";
+import BannerAd from "./ads/BannerAd";
+import InFeedAd from "./ads/InFeedAd";
+import { AD_SLOTS } from "@/lib/adsense-config";
 
 interface PrayerRequest {
   id: string;
@@ -898,26 +901,37 @@ export default function ProfilePage() {
           </TabsList>
 
           <TabsContent value="prayers" className="mt-6 space-y-4">
+            {/* Banner ad at the top of the profile page */}
+            <BannerAd slot={AD_SLOTS.PROFILE_TOP_BANNER} className="mb-4" />
+
             {prayerRequests.length > 0 ? (
-              prayerRequests.map((request) => (
-                <PrayerRequestCard
-                  key={request.id}
-                  id={request.id}
-                  content={request.content}
-                  username={request.profiles?.username || "Anonymous"}
-                  timestamp={request.created_at}
-                  isPrivate={!request.is_public}
-                  prayerCount={request.prayer_count || 0}
-                  commentCount={request.comment_count || 0}
-                  hasPrayed={prayedRequests.has(request.id)}
-                  imageUrl={request.image_url}
-                  avatarUrl={request.profiles?.avatar_url}
-                  isOwner={true} // In profile page, all requests belong to the user
-                  onPrayClick={() => handlePrayerClick(request)}
-                  onCommentClick={() => setSelectedRequest(request)}
-                  onDeleteClick={handleDeleteRequest}
-                />
-              ))
+              <>
+                {prayerRequests.map((request, index) => (
+                  <React.Fragment key={request.id}>
+                    <PrayerRequestCard
+                      id={request.id}
+                      content={request.content}
+                      username={request.profiles?.username || "Anonymous"}
+                      timestamp={request.created_at}
+                      isPrivate={!request.is_public}
+                      prayerCount={request.prayer_count || 0}
+                      commentCount={request.comment_count || 0}
+                      hasPrayed={prayedRequests.has(request.id)}
+                      imageUrl={request.image_url}
+                      avatarUrl={request.profiles?.avatar_url}
+                      isOwner={true} // In profile page, all requests belong to the user
+                      onPrayClick={() => handlePrayerClick(request)}
+                      onCommentClick={() => setSelectedRequest(request)}
+                      onDeleteClick={handleDeleteRequest}
+                    />
+
+                    {/* Insert an ad after every 4 prayer requests */}
+                    {(index + 1) % 4 === 0 && index < prayerRequests.length - 1 && (
+                      <InFeedAd slot={AD_SLOTS.PROFILE_IN_FEED} className="my-6" />
+                    )}
+                  </React.Fragment>
+                ))}
+              </>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <p>No prayer requests yet</p>
@@ -931,6 +945,10 @@ export default function ProfilePage() {
           <TabsContent value="interactions" className="mt-6">
             <div className="text-center py-8 text-muted-foreground">
               <p>Coming soon...</p>
+              {/* Ad in the interactions tab */}
+              <div className="mt-8">
+                <BannerAd slot={AD_SLOTS.PROFILE_INTERACTIONS} />
+              </div>
             </div>
           </TabsContent>
         </Tabs>

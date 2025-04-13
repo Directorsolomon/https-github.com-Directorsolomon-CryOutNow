@@ -12,6 +12,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { HelmetProvider } from "react-helmet-async";
+import AdsenseProvider from "./lib/adsense-provider";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
@@ -71,12 +72,14 @@ function App() {
     <ErrorBoundary>
       <HelmetProvider>
         <AuthProvider>
-          <div className="min-h-screen bg-background">
-            <AppRoutes />
-            <Toaster />
-            <Analytics />
-            <SpeedInsights />
-          </div>
+          <AdsenseProvider>
+            <div className="min-h-screen bg-background">
+              <AppRoutes />
+              <Toaster />
+              <Analytics />
+              <SpeedInsights />
+            </div>
+          </AdsenseProvider>
         </AuthProvider>
       </HelmetProvider>
     </ErrorBoundary>

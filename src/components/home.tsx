@@ -12,6 +12,10 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "./ui/use-toast";
 import { clearImageFromCache } from "@/lib/image-utils";
 import SEO from "./SEO";
+import InFeedAd from "./ads/InFeedAd";
+import SidebarAd from "./ads/SidebarAd";
+import BannerAd from "./ads/BannerAd";
+import { AD_SLOTS } from "@/lib/adsense-config";
 
 interface HomeProps {
   showNewRequestDialog?: boolean;
@@ -568,26 +572,41 @@ const HomeInner = ({ showNewRequestDialog = false }: HomeProps) => {
                 }}
               />
             ) : prayerRequests.length > 0 ? (
-              prayerRequests.map((request) => (
-                <div key={request.id} className="p-4">
-                  <PrayerRequestCard
-                    id={request.id}
-                    content={request.content}
-                    username={request.profiles?.username || "Anonymous"}
-                    timestamp={request.created_at}
-                    isPrivate={!request.is_public}
-                    prayerCount={request.prayer_count || 0}
-                    commentCount={request.comment_count || 0}
-                    hasPrayed={prayedRequests.has(request.id)}
-                    imageUrl={request.image_url}
-                    avatarUrl={request.profiles?.avatar_url}
-                    isOwner={user?.id === request.user_id}
-                    onPrayClick={() => handlePrayerClick(request)}
-                    onCommentClick={() => setSelectedRequest(request)}
-                    onDeleteClick={handleDeleteRequest}
-                  />
-                </div>
-              ))
+              <>
+                {/* Banner ad at the top of the feed */}
+                <BannerAd slot={AD_SLOTS.HOME_TOP_BANNER} className="mb-4" />
+
+                {prayerRequests.map((request, index) => (
+                  <React.Fragment key={request.id}>
+                    <div className="p-4">
+                      <PrayerRequestCard
+                        id={request.id}
+                        content={request.content}
+                        username={request.profiles?.username || "Anonymous"}
+                        timestamp={request.created_at}
+                        isPrivate={!request.is_public}
+                        prayerCount={request.prayer_count || 0}
+                        commentCount={request.comment_count || 0}
+                        hasPrayed={prayedRequests.has(request.id)}
+                        imageUrl={request.image_url}
+                        avatarUrl={request.profiles?.avatar_url}
+                        isOwner={user?.id === request.user_id}
+                        onPrayClick={() => handlePrayerClick(request)}
+                        onCommentClick={() => setSelectedRequest(request)}
+                        onDeleteClick={handleDeleteRequest}
+                      />
+                    </div>
+
+                    {/* Insert an ad after every 3 prayer requests */}
+                    {(index + 1) % 3 === 0 && index < prayerRequests.length - 1 && (
+                      <InFeedAd slot={AD_SLOTS.HOME_IN_FEED} />
+                    )}
+                  </React.Fragment>
+                ))}
+
+                {/* Banner ad at the bottom of the feed */}
+                <BannerAd slot={AD_SLOTS.HOME_BOTTOM_BANNER} className="mt-4" />
+              </>
             ) : (
               <div className="text-center py-12">
                 <p className="text-muted-foreground">
@@ -654,11 +673,7 @@ const HomeInner = ({ showNewRequestDialog = false }: HomeProps) => {
             {/* Sponsored */}
             <div>
               <h3 className="font-semibold mb-4 text-lg">Sponsored</h3>
-              <div className="bg-card rounded-lg overflow-hidden shadow-md p-4">
-                <div className="text-sm text-muted-foreground">
-                  Advertisement space
-                </div>
-              </div>
+              <SidebarAd slot={AD_SLOTS.HOME_SIDEBAR} />
             </div>
           </div>
         </aside>

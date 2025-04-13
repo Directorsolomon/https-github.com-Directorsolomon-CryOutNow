@@ -6,6 +6,8 @@ import { AuthProvider } from "@/lib/auth";
 import AuthForm from "./auth/AuthForm";
 import SEO from "./SEO";
 import { WebsiteStructuredData, OrganizationStructuredData } from "./StructuredData";
+import BannerAd from "./ads/BannerAd";
+import { AD_SLOTS } from "@/lib/adsense-config";
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -97,6 +99,11 @@ const LandingPage = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Ad Banner */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <BannerAd slot={AD_SLOTS.LANDING_BANNER} />
       </div>
 
       {/* Features Grid */}
